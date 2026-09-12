@@ -1,27 +1,31 @@
-import { Cmd } from "@lickle/cmd-core";
+import type { Cmd } from '@lickle/cmd-core'
 
-export * from "@lickle/cmd-core";
+export * from '@lickle/cmd-core'
 
+/**
+ * A group of commands.
+ *
+ * A named group occupies one segment of the command path (`app db migrate`); an
+ * unnamed group is a plain container whose commands live in its parent's
+ * namespace, which is what the root of a CLI usually is.
+ */
 export interface SubCmds {
-  cmds: ReadonlyArray<Cmd | SubCmds>;
+  name?: string
+  description?: string
+  cmds: ReadonlyArray<Cmd | SubCmds>
 }
 
-declare module "@lickle/cmd-core/types" {
-  export type PositionalsSpec<D extends FieldsSpec> = [
-    ...Fields.Primitives<D>[],
-    Fields.Types<D>,
-  ];
+export const isSubCmds = (c: Cmd | SubCmds): c is SubCmds => 'cmds' in c
 
-  type SpecInputs<S> = S extends { inputs: infer I } ? I extends FieldsSpec ? I
-    : never
-    : never;
+declare module '@lickle/cmd-core/types' {
+  export type PositionalsSpec<D extends FieldsSpec> = [...Fields.Primitives<D>[], Fields.Types<D>]
+
+  type SpecInputs<S> = S extends { inputs: infer I } ? (I extends FieldsSpec ? I : never) : never
 
   export interface Spec {
-    positionals?: string[];
+    positionals?: string[]
   }
   interface BaseBuilder<S extends Struct> {
-    positionals: <D extends PositionalsSpec<SpecInputs<S>>>(
-      d: D,
-    ) => Builder<S & { positionals: D }>;
+    positionals: <D extends PositionalsSpec<SpecInputs<S>>>(d: D) => Builder<S & { positionals: D }>
   }
 }

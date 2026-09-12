@@ -1,1 +1,5 @@
-{ "extends": "../tsconfig.json", "references": [{ "path": "../core" }] }
+{
+  "extends": "../tsconfig.json",
+  "references": [{ "path": "../core" }],
+  "compilerOptions": { "types": ["node"] }
+}
