@@ -1,6 +1,6 @@
 {
   "extends": "../tsconfig.base.json",
   "files": [],
-  "references": [{ "path": "./cli" }, { "path": "./core" }],
+  "references": [{ "path": "./cli" }, { "path": "./gha" }, { "path": "./core" }],
   "include": ["${configDir}/src/**/*.ts"]
 }

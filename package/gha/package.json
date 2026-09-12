@@ -1,0 +1,26 @@
+{
+  "name": "@lickle/cmd-gha",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "js-yaml": "^5.4.1",
+    "@lickle/cmd-core": "workspace:*"
+  }
+}

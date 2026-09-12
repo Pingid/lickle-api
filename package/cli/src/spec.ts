@@ -17,6 +17,8 @@ export interface SubCmds {
 
 export const isSubCmds = (c: Cmd | SubCmds): c is SubCmds => 'cmds' in c
 
+export const commands = <const C extends SubCmds>(cmds: C) => cmds
+
 declare module '@lickle/cmd-core/types' {
   export type PositionalsSpec<D extends FieldsSpec> = [...Fields.Primitives<D>[], Fields.Types<D>]
 

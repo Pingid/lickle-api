@@ -1,6 +1,6 @@
 export * as spec from './spec.ts'
 
-export { isSubCmds } from './spec.ts'
+export { isSubCmds, commands } from './spec.ts'
 export type { SubCmds } from './spec.ts'
 
 export * from './complete.ts'
