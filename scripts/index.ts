@@ -1,4 +1,5 @@
 import { compile } from 'json-schema-to-typescript'
+import * as prettier from 'prettier'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 
@@ -19,8 +20,12 @@ const gha_types_spec = spec
 const gha_types = spec.cmd(gha_types_spec, async (args) => {
   const schema = await fetch('https://json.schemastore.org/github-action.json').then((res) => res.json())
   const ts = await compile(schema, 'Action')
+  // Format with the repo's own prettier config so the generated file is not a
+  // permanent diff against `prettier --check`.
+  const config = await prettier.resolveConfig(args.file)
+  const formatted = await prettier.format(ts, { ...config, parser: 'typescript' })
   fs.mkdirSync(path.dirname(args.file), { recursive: true })
-  await fs.promises.writeFile(args.file, ts)
+  await fs.promises.writeFile(args.file, formatted)
 })
 
 const cli = commands({
