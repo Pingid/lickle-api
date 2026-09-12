@@ -50,6 +50,22 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@22.20.2)(vite@8.3.0(@types/node@22.20.2))
 
+  package/mcp:
+    dependencies:
+      '@lickle/cmd-core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@lickle/cmd-cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@types/node':
+        specifier: ^22.20.2
+        version: 22.20.2
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.20.2)(vite@8.3.0(@types/node@22.20.2))
+
 packages:
 
   '@apidevtools/json-schema-ref-parser@11.9.3':
@@ -779,7 +795,7 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.1
 
-  '@vitest/mocker@4.1.11(vite@8.3.0)':
+  '@vitest/mocker@4.1.11(vite@8.3.0(@types/node@22.20.2))':
     dependencies:
       '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
@@ -1009,7 +1025,7 @@ snapshots:
   vitest@4.1.11(@types/node@22.20.2)(vite@8.3.0(@types/node@22.20.2)):
     dependencies:
       '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@8.3.0)
+      '@vitest/mocker': 4.1.11(vite@8.3.0(@types/node@22.20.2))
       '@vitest/pretty-format': 4.1.11
       '@vitest/runner': 4.1.11
       '@vitest/snapshot': 4.1.11

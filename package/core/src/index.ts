@@ -1,4 +1,5 @@
 export * from './types.ts'
 export * from './cons.ts'
 export * from './kind.ts'
+export * from './schema.ts'
 export * from './tree.ts'

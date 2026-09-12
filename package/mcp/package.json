@@ -1,0 +1,26 @@
+{
+  "name": "@lickle/cmd-mcp",
+  "version": "1.0.0",
+  "description": "",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@lickle/cmd-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@lickle/cmd-cli": "workspace:*",
+    "@types/node": "^22.20.2",
+    "vitest": "^4.1.11"
+  }
+}
