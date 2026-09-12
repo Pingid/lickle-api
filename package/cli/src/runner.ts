@@ -1,7 +1,7 @@
 import type { Cmd, Spec } from '@lickle/cmd-core'
 import { CliError, withUsagePath } from './errors.ts'
 import { cmdHelp, groupHelp } from './help.ts'
-import { parseArgs } from './parse.ts'
+import { parseArgs, peekFormat } from './parse.ts'
 import { render, renderError, type Format } from './output.ts'
 import { isSubCmds, type SubCmds } from './spec.ts'
 
@@ -29,7 +29,9 @@ export const EXIT = { ok: 0, failed: 1, usage: 2 } as const
 export const run = async (cmds: SubCmds, argv: string[], opts: RunOpts = {}): Promise<number> => {
   const stdout = opts.stdout ?? ((s: string) => void process.stdout.write(s))
   const stderr = opts.stderr ?? ((s: string) => void process.stderr.write(s))
-  let output: Format = 'text'
+  // Read the format up front so failures before or during parsing are still
+  // reported the way the caller asked for.
+  let output: Format = peekFormat(argv)
 
   try {
     const { target, path, rest } = resolve(cmds, argv, [opts.name ?? cmds.name ?? 'cli'])

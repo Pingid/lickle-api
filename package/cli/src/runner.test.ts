@@ -104,6 +104,20 @@ test('errors honour --output json', async () => {
   expect(JSON.parse(err)).toEqual({ error: { message: 'the database is on fire' } })
 })
 
+test('usage errors honour --output json, even when parsing never finishes', async () => {
+  // The format has to be read before the failure, not from a successful parse.
+  for (const argv of [
+    ['say', 'greet', '-o', 'json'], // missing a required input
+    ['say', 'greet', '--bogus', '--output=json'], // unknown option
+    ['nope', '-ojson'], // unknown command, before any spec is in hand
+  ]) {
+    const { code, err } = await invoke(argv)
+    expect(code).toBe(EXIT.usage)
+    expect(() => JSON.parse(err)).not.toThrow()
+    expect(JSON.parse(err).error.message).toBeTypeOf('string')
+  }
+})
+
 test('the program name comes from opts, then the root group', async () => {
   let out = ''
   await run(cmds, ['--help'], { name: 'other', stdout: (s) => (out += s), stderr: () => {} })

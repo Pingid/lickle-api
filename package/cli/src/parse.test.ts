@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { parseArgs } from './parse.ts'
+import { parseArgs, peekFormat } from './parse.ts'
 import { bool, build, field, list, num, optional, string, type Spec } from './spec.ts'
 
 const mk = (inputs: Record<string, unknown>, positionals?: string[]): Spec => ({
@@ -100,6 +100,17 @@ test('--output selects the format and rejects anything else', () => {
   expect(parseArgs(spec, ['-o', 'json']).output).toBe('json')
   expect(parseArgs(spec, ['-ojson']).output).toBe('json')
   expect(() => parseArgs(spec, ['-o', 'yaml'])).toThrow(/expected 'text' or 'json'/)
+})
+
+test('peekFormat finds the format without parsing anything else', () => {
+  expect(peekFormat([])).toBe('text')
+  expect(peekFormat(['--bogus', '--output', 'json'])).toBe('json')
+  expect(peekFormat(['--output=json'])).toBe('json')
+  expect(peekFormat(['-o', 'json'])).toBe('json')
+  expect(peekFormat(['-ojson'])).toBe('json')
+  expect(peekFormat(['-o=json'])).toBe('json')
+  expect(peekFormat(['-o', 'yaml'])).toBe('text')
+  expect(peekFormat(['--', '-o', 'json'])).toBe('text')
 })
 
 test('specs may not shadow the reserved flags', () => {

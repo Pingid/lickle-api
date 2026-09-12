@@ -17,6 +17,30 @@ export interface ParsedArgs {
 }
 
 /**
+ * Find `--output`/`-o` in a raw argv, ignoring everything else.
+ *
+ * Parsing can fail before it reaches the output flag — or before a command is
+ * even resolved — so the runner peeks first to report those failures in the
+ * format that was asked for. `parseArgs` remains authoritative once it succeeds.
+ */
+export const peekFormat = (argv: string[]): Format => {
+  let format: Format = 'text'
+  for (const [i, arg] of argv.entries()) {
+    if (arg === '--') break
+    const raw =
+      arg === '--output' || arg === '-o'
+        ? argv[i + 1]
+        : arg.startsWith('--output=')
+          ? arg.slice('--output='.length)
+          : arg.startsWith('-o') && arg !== '-o'
+            ? arg.slice(arg.startsWith('-o=') ? 3 : 2)
+            : undefined
+    if (raw !== undefined && isFormat(raw)) format = raw
+  }
+  return format
+}
+
+/**
  * Parse `argv` (already stripped of the command path) against a spec.
  *
  * Supports `--name value`, `--name=value`, `-n value`, `-n=value`, grouped short
