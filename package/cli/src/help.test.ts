@@ -54,6 +54,16 @@ test('optional and variadic positionals use the right usage tokens', () => {
   expect(cmdHelp(spec, ['app', 'copy'])).toContain('Usage: app copy [options] <src> [dest] [extra...]')
 })
 
+test('a field with values renders its choices as the placeholder', () => {
+  const spec: Spec = {
+    name: 'migrate',
+    description: 'Migrate.',
+    inputs: { mode: field({ d: 'How to apply them.', kind: string, values: ['fast', 'safe'], alias: ['m'] }) },
+  }
+  expect(cmdHelp(spec, ['app'])).toContain('-m, --mode <fast|safe>    How to apply them. (required)')
+  expect(cmdHelp({ ...spec, positionals: ['mode'] }, ['app'])).toContain('<mode>  How to apply them. (fast|safe)')
+})
+
 test('required options are marked', () => {
   expect(cmdHelp({ ...migrate, positionals: [] }, ['app'])).toContain(
     '      --target <string>     Migration to stop at. (required)',

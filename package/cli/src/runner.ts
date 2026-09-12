@@ -4,6 +4,7 @@ import { cmdHelp, groupHelp } from './help.ts'
 import { parseArgs, peekFormat } from './parse.ts'
 import { render, renderError, type Format } from './output.ts'
 import { isSubCmds, type SubCmds } from './spec.ts'
+import { findChild } from './tree.ts'
 
 export interface RunOpts {
   /** Program name used in usage lines. Defaults to the root group's name. */
@@ -105,23 +106,6 @@ const resolve = (root: SubCmds, argv: string[], path: string[]): Resolved => {
   }
 
   return { target: group, path, rest: argv.slice(i) }
-}
-
-/** Match one path segment, looking through unnamed groups into their commands. */
-const findChild = (group: SubCmds, segment: string): Cmd | SubCmds | undefined => {
-  for (const child of group.cmds) {
-    if (!isSubCmds(child)) {
-      if (child.spec.name === segment) return child
-      continue
-    }
-    if (child.name === undefined) {
-      const nested = findChild(child, segment)
-      if (nested !== undefined) return nested
-      continue
-    }
-    if (child.name === segment) return child
-  }
-  return undefined
 }
 
 /** Groups have no inputs of their own; they still answer to the global flags. */

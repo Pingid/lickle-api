@@ -25,6 +25,14 @@ declare module '@lickle/cmd-core/types' {
   export interface Spec {
     positionals?: string[]
   }
+
+  /**
+   * A fixed set of accepted values. The parser rejects anything else, help
+   * renders them as `<a|b|c>`, and completions offer them after the flag.
+   */
+  export interface InputField<T extends Type = Type> {
+    values?: string[]
+  }
   interface BaseBuilder<S extends Struct> {
     positionals: <D extends PositionalsSpec<SpecInputs<S>>>(d: D) => Builder<S & { positionals: D }>
   }

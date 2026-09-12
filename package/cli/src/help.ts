@@ -1,6 +1,7 @@
 import type { InputField, Spec } from '@lickle/cmd-core'
 import { isBoolFlag, isList, isRequired, itemOf, typeLabel } from './kind.ts'
-import { isSubCmds, type SubCmds } from './spec.ts'
+import type { SubCmds } from './spec.ts'
+import { children } from './tree.ts'
 
 type Row = [left: string, right: string]
 
@@ -15,7 +16,7 @@ export const groupHelp = (group: SubCmds, path: string[]): string => {
   if (group.description) sections.push(group.description)
   sections.push(`Usage: ${path.join(' ')} <command> [options]`)
 
-  const commands = listCommands(group)
+  const commands = children(group).map(({ name, description }): Row => [name, description])
   if (commands.length > 0) sections.push(section('Commands', commands))
   sections.push(section('Options', GLOBAL_OPTIONS))
 
@@ -37,7 +38,7 @@ export const cmdHelp = (spec: Spec, path: string[]): string => {
   for (const key of positionals) {
     const field = inputs[key]
     if (field === undefined) continue
-    args.push([token(key, field), annotate(field.d, typeLabel(field.kind), defaultNote(field))])
+    args.push([token(key, field), annotate(field.d, valueLabel(field), defaultNote(field))])
   }
   if (args.length > 0) sections.push(section('Arguments', args))
 
@@ -57,17 +58,6 @@ export const cmdHelp = (spec: Spec, path: string[]): string => {
   return sections.join('\n\n')
 }
 
-/**
- * Direct children of a group, flattening unnamed groups since they contribute
- * their commands to the parent's namespace rather than a path segment.
- */
-const listCommands = (group: SubCmds): Row[] =>
-  group.cmds.flatMap((child): Row[] => {
-    if (!isSubCmds(child)) return [[child.spec.name, child.spec.description]]
-    if (child.name === undefined) return listCommands(child)
-    return [[child.name, child.description ?? '']]
-  })
-
 /** Usage token for a positional: `<name>`, `[name]` or `[name...]`. */
 const token = (key: string, field: InputField | undefined): string => {
   if (field === undefined) return `<${key}>`
@@ -85,8 +75,12 @@ const flags = (key: string, field: InputField): string => {
   const names = [...shorts, `--${key}`, ...aliases.filter((a) => a.length > 1).map((a) => `--${a}`)]
   const column = shorts.length > 0 ? names.join(', ') : `    ${names.join(', ')}`
   if (isBoolFlag(field.kind)) return column
-  return `${column} <${itemOf(field.kind).type}${isList(field.kind) ? '...' : ''}>`
+  const label = field.values ? field.values.join('|') : itemOf(field.kind).type
+  return `${column} <${label}${isList(field.kind) ? '...' : ''}>`
 }
+
+/** What a field accepts: its declared choices, else its type. */
+const valueLabel = (field: InputField): string => (field.values ? field.values.join('|') : typeLabel(field.kind))
 
 const defaultNote = (field: InputField): string | undefined =>
   field.default === undefined ? undefined : `default: ${JSON.stringify(field.default)}`

@@ -106,6 +106,18 @@ longer ones become additional long flags. `--` ends flag parsing, so everything
 after it is positional. `--help`, `-h`, `--output` and `-o` are reserved — a spec
 that uses those names for its own inputs is rejected.
 
+An input can also name the only values it accepts. The parser rejects anything
+else, help shows the choices in place of the type, and completions offer them:
+
+```ts
+mode: spec.field({ d: 'How to apply them.', kind: spec.string, values: ['fast', 'safe'] })
+```
+
+```console
+$ todo add 'buy milk' --mode sloppy
+error: invalid value for 'mode': 'sloppy' (expected 'fast' or 'safe')
+```
+
 ## Subcommands
 
 A group with a `name` takes a path segment; an unnamed group just lends its
@@ -125,6 +137,53 @@ const cmds: SubCmds = {
 ```console
 $ todo task add 'buy milk'
 ```
+
+## Completions
+
+`withCompletions` adds a `completions <shell>` command wired to the tree it
+returns, for **bash**, **zsh** and **fish**:
+
+```ts
+const cmds = withCompletions({ name: 'todo', description: 'A tiny task list.', cmds: [add] })
+```
+
+```console
+$ todo completions fish
+# todo completions for fish.
+# Generated from the command spec — regenerate when the CLI changes.
+# Install: todo completions fish > ~/.config/fish/completions/todo.fish
+
+complete -c todo -n '__fish_use_subcommand' -a 'add' -d 'Add a task.'
+complete -c todo -n '__fish_use_subcommand' -s o -r -d 'Output format.' -a 'text json'
+complete -c todo -n '__fish_seen_subcommand_from add' -s t -r -d 'Tags to file it under.'
+complete -c todo -n '__fish_seen_subcommand_from add' -l tag -r -d 'Tags to file it under.'
+...
+```
+
+The whole command tree is baked into the script, so completing costs nothing at
+the prompt — and the script has to be regenerated when the CLI changes. Commands,
+every flag spelling, and any `values` are all completed; zsh and fish also show
+each candidate's description. Install it where your shell looks:
+
+```console
+$ todo completions bash > /etc/bash_completion.d/todo
+$ todo completions zsh  > "${fpath[1]}/_todo"
+$ todo completions fish > ~/.config/fish/completions/todo.fish
+```
+
+To place the command yourself — inside a group, say — use the underlying
+factory. It takes the tree as a thunk, since the command lives inside the tree
+it describes:
+
+```ts
+const cmds: SubCmds = {
+  name: 'todo',
+  cmds: [add, { name: 'util', cmds: [completionsCmd(() => cmds)] }],
+}
+```
+
+`completion(cmds, shell, opts?)` returns the script directly if you would rather
+generate it at build time than ship a subcommand.
 
 ## Exit codes
 

@@ -70,6 +70,9 @@ export const parseArgs = (spec: Spec, argv: string[]): ParsedArgs => {
   const next = (): string | undefined => argv[i++]
 
   const addValue = (key: string, field: InputField, raw: string): void => {
+    if (field.values !== undefined && !field.values.includes(raw))
+      throw new CliError(`invalid value for '${key}': '${raw}' (expected ${oneOf(field.values)})`)
+
     if (isList(field.kind)) {
       const list = (values.get(key) as unknown[]) ?? []
       list.push(coerce(field.kind.item, raw, key))
@@ -210,6 +213,13 @@ const coerce = (kind: Primitive, raw: string, key: string): unknown => {
     default:
       return raw
   }
+}
+
+/** `'a', 'b' or 'c'` — the tail of an "expected …" message. */
+export const oneOf = (values: readonly string[]): string => {
+  const quoted = values.map((v) => `'${v}'`)
+  const last = quoted.pop()
+  return quoted.length === 0 ? (last ?? '') : `${quoted.join(', ')} or ${last}`
 }
 
 const parseBool = (raw: string, display: string): boolean => {

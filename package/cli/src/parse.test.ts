@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { parseArgs, peekFormat } from './parse.ts'
+import { oneOf, parseArgs, peekFormat } from './parse.ts'
 import { bool, build, field, list, num, optional, string, type Spec } from './spec.ts'
 
 const mk = (inputs: Record<string, unknown>, positionals?: string[]): Spec => ({
@@ -100,6 +100,30 @@ test('--output selects the format and rejects anything else', () => {
   expect(parseArgs(spec, ['-o', 'json']).output).toBe('json')
   expect(parseArgs(spec, ['-ojson']).output).toBe('json')
   expect(() => parseArgs(spec, ['-o', 'yaml'])).toThrow(/expected 'text' or 'json'/)
+})
+
+test('a field with values accepts only those, as flag or positional', () => {
+  const spec = mk({ mode: field({ d: 'mode', kind: string, values: ['fast', 'safe'] }) })
+  expect(parseArgs(spec, ['--mode', 'fast']).inputs).toEqual({ mode: 'fast' })
+  expect(() => parseArgs(spec, ['--mode', 'sloppy'])).toThrow(
+    /invalid value for 'mode': 'sloppy' \(expected 'fast' or 'safe'\)/,
+  )
+
+  const positional = mk({ mode: field({ d: 'mode', kind: string, values: ['fast', 'safe'] }) }, ['mode'])
+  expect(parseArgs(positional, ['safe']).inputs).toEqual({ mode: 'safe' })
+  expect(() => parseArgs(positional, ['sloppy'])).toThrow(/invalid value/)
+})
+
+test('values are checked for every item of a list', () => {
+  const spec = mk({ tag: field({ d: 'tag', kind: list(string), values: ['a', 'b'] }) })
+  expect(parseArgs(spec, ['--tag', 'a', '--tag', 'b']).inputs).toEqual({ tag: ['a', 'b'] })
+  expect(() => parseArgs(spec, ['--tag', 'a', '--tag', 'z'])).toThrow(/invalid value/)
+})
+
+test('oneOf reads as a sentence', () => {
+  expect(oneOf(['a'])).toBe("'a'")
+  expect(oneOf(['a', 'b'])).toBe("'a' or 'b'")
+  expect(oneOf(['a', 'b', 'c'])).toBe("'a', 'b' or 'c'")
 })
 
 test('peekFormat finds the format without parsing anything else', () => {
