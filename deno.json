@@ -1,0 +1,17 @@
+{
+  "workspace": ["core", "cli"],
+  "fmt": { "lineWidth": 160 },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"],
+      "include": [],
+      "exclude": ["no-explicit-any", "no-unversioned-import"]
+    }
+  },
+  "docs": {
+    "include": ["core", "cli"]
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1"
+  }
+}
