@@ -1,0 +1,24 @@
+{
+  "name": "lickle-cmd",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -b"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "printWidth": 120,
+    "trailingComma": "all"
+  }
+}
