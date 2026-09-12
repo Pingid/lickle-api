@@ -1,4 +1,4 @@
-import { type Spec } from '@lickle/cmd-core'
+import { hasDefault, isOptional, type Spec } from '@lickle/cmd-core'
 import { dump } from 'js-yaml'
 
 import type * as Action from './types.ts'
@@ -9,7 +9,9 @@ export const yml = (d: Spec, runner: (definition: Spec) => Action.HttpsJsonSchem
     description: d.description,
     inputs: remap(d.inputs ?? {}, (key, value) => [
       key as string,
-      { description: value.d, required: value.kind.type !== 'optional', default: value.default },
+      // An input with a default is not required, whatever its kind — saying
+      // both would tell the caller to supply something the action supplies.
+      { description: value.d, required: !isOptional(value.kind) && !hasDefault(value), default: value.default },
     ]),
     outputs: remap(d.outputs ?? {}, (key, value) => [
       key as string,

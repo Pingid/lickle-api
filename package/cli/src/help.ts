@@ -1,7 +1,6 @@
 import type { InputField, Spec } from '@lickle/cmd-core'
-import { isBoolFlag, isList, isRequired, itemOf, typeLabel } from './kind.ts'
-import type { SubCmds } from './spec.ts'
-import { children } from './tree.ts'
+import { isBoolFlag, isRequired, typeLabel } from './kind.ts'
+import { children, isList, itemOf, type SubCmds } from './spec.ts'
 
 type Row = [left: string, right: string]
 

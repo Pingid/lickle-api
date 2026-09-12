@@ -1,5 +1,5 @@
-import type { Cmd } from '@lickle/cmd-core'
-import { isSubCmds, type SubCmds } from './spec.ts'
+import { isSubCmds } from './cons.ts'
+import type { Cmd, SubCmds } from './types.ts'
 
 export interface Child {
   name: string

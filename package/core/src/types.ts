@@ -6,6 +6,16 @@ export const KIND = {
   list: 'list',
 } as const
 
+/**
+ * One named operation: what it is called, what it does, what it takes and what
+ * it produces. Deliberately says nothing about *how* it runs — that belongs to
+ * whichever target renders it.
+ *
+ * Targets may add their own fields by augmenting this interface. Convention: a
+ * single flat optional key when the concept is unmistakably that target's (as
+ * `cli` does with `positionals`); two or more fields go in one object named for
+ * the target (`http?: { method, path }`), so the keys stay attributable.
+ */
 export interface Spec {
   name: string
   description: string
@@ -27,6 +37,12 @@ export interface Field {
 export interface InputField<T extends Type = Type> extends Field {
   default?: any
   alias?: string[]
+  /**
+   * The only values accepted. Every target that can express a closed set uses
+   * this — a CLI rejects anything else and completes the choices, JSON Schema
+   * calls it `enum`, a chat command calls it `choices`.
+   */
+  values?: string[]
   kind: T
 }
 
@@ -54,6 +70,19 @@ export type Type = Primitive | Optional<Primitive> | List<Primitive>
 export interface Cmd {
   spec: Spec
   run: Run<this['spec']>
+}
+
+/**
+ * A group of commands.
+ *
+ * A named group occupies one segment of the path a target addresses commands by
+ * (`app db migrate`); an unnamed group is a plain container whose commands live
+ * in its parent's namespace, which is what the root of a tree usually is.
+ */
+export interface SubCmds {
+  name?: string
+  description?: string
+  cmds: ReadonlyArray<Cmd | SubCmds>
 }
 
 export type Run<S extends Spec> = (

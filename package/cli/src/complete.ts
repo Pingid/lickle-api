@@ -1,9 +1,8 @@
 import type { InputField, Spec } from '@lickle/cmd-core'
 import { cmd, type Cmd } from '@lickle/cmd-core'
-import { isBoolFlag, isList } from './kind.ts'
+import { isBoolFlag } from './kind.ts'
 import { FORMATS } from './output.ts'
-import { field, isSubCmds, string, type SubCmds } from './spec.ts'
-import { children, walk } from './tree.ts'
+import { children, field, isList, isSubCmds, string, walk, type SubCmds } from './spec.ts'
 
 export const SHELLS = ['bash', 'zsh', 'fish'] as const
 

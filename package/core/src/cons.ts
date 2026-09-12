@@ -9,6 +9,7 @@ import type {
   Run,
   Spec,
   Struct,
+  SubCmds,
   Type,
 } from './types.ts'
 import { KIND } from './types.ts'
@@ -29,6 +30,13 @@ export const cmdFor = <const S extends Spec>(spec: S, run: (i: Inputs<S>) => Out
   ({ spec, run }) as any
 
 export const cmd = <const S extends Spec, const R extends Run<S>>(spec: S, run: R) => ({ spec, run }) as Cmd
+
+// ---------------- Command tree --------------------------
+/** Narrow a tree node: a group holds `cmds`, a command holds a `spec`. */
+export const isSubCmds = (c: Cmd | SubCmds): c is SubCmds => 'cmds' in c
+
+/** Identity, for inference — keeps a tree literal's names and shape. */
+export const commands = <const C extends SubCmds>(cmds: C) => cmds
 
 // ---------------- Builder --------------------------
 export const build = <N extends string>(name: N): Builder<{ name: N }> => {

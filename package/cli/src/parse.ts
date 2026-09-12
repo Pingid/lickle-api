@@ -1,7 +1,8 @@
 import { KIND } from '@lickle/cmd-core'
 import type { InputField, InputsSpec, Primitive, Spec } from '@lickle/cmd-core'
 import { CliError } from './errors.ts'
-import { isBoolFlag, isList, isOptional, itemOf } from './kind.ts'
+import { isBoolFlag } from './kind.ts'
+import { isList, isOptional, itemOf } from './spec.ts'
 import { isFormat, type Format } from './output.ts'
 
 /** Flags every command answers to, regardless of its spec. */

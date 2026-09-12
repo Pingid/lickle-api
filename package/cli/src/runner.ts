@@ -3,8 +3,7 @@ import { CliError, withUsagePath } from './errors.ts'
 import { cmdHelp, groupHelp } from './help.ts'
 import { parseArgs, peekFormat } from './parse.ts'
 import { render, renderError, type Format } from './output.ts'
-import { isSubCmds, type SubCmds } from './spec.ts'
-import { findChild } from './tree.ts'
+import { findChild, isSubCmds, type SubCmds } from './spec.ts'
 
 export interface RunOpts {
   /** Program name used in usage lines. Defaults to the root group's name. */

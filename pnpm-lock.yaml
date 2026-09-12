@@ -22,7 +22,7 @@ importers:
     dependencies:
       '@lickle/cmd-core':
         specifier: workspace:*
-        version: link:../gha
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^22.20.2
@@ -41,7 +41,7 @@ importers:
     dependencies:
       '@lickle/cmd-core':
         specifier: workspace:*
-        version: 'link:'
+        version: link:../core
       js-yaml:
         specifier: ^5.4.1
         version: 5.4.1
