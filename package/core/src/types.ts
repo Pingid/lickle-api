@@ -104,7 +104,7 @@ type TypeOfType<T extends Type> = T['type'] extends typeof KIND.bool
           : never
 
 type FieldReq<D extends Record<string, Field>> = {
-  [K in keyof D]: D[K]['kind'] extends 'optional' ? { r: never; o: K } : { r: K; o: never }
+  [K in keyof D]: D[K]['kind'] extends Optional<Primitive> ? { r: never; o: K } : { r: K; o: never }
 }[keyof D]
 type FieldTypes<D extends Record<string, Field>> = {
   [K in keyof D]: TypeOfType<D[K]['kind']>

@@ -1,4 +1,13 @@
-import { SubCmds } from './spec.ts'
 export * as spec from './spec.ts'
 
-export const run = (_cmds: SubCmds, _argv: string[]) => {}
+export { isSubCmds } from './spec.ts'
+export type { SubCmds } from './spec.ts'
+
+export * from './complete.ts'
+export * from './errors.ts'
+export * from './help.ts'
+export * from './kind.ts'
+export * from './output.ts'
+export * from './parse.ts'
+export * from './runner.ts'
+export * from './tree.ts'
