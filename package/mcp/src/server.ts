@@ -1,5 +1,6 @@
-import type { Cmd, SubCmds } from '@lickle/cmd-core'
-import { ArgsError, parseArgs } from './args.ts'
+import { InputError, outputFields } from '@lickle/cmd-core'
+import type { Command, Namespace } from '@lickle/cmd-core'
+import { bindArgs } from './args.ts'
 import { errorResult, toolResult } from './result.ts'
 import { tools, type ToolEntry, type ToolsOpts } from './tools.ts'
 import {
@@ -43,14 +44,14 @@ export type Dispatch = (message: unknown) => Promise<JSONRPCResponse | undefined
  * `tools/call`. Capabilities advertise nothing else, so answering everything
  * else with METHOD_NOT_FOUND is correct rather than merely incomplete.
  */
-export const server = (cmds: SubCmds, opts: McpOpts = {}): Dispatch => {
-  const entries = tools(cmds, opts)
+export const server = (tree: Namespace, opts: McpOpts = {}): Dispatch => {
+  const entries = tools(tree, opts)
   const byName = new Map(entries.map((e) => [e.tool.name, e]))
 
   const discover = (): DiscoverResult => ({
     supportedVersions: [PROTOCOL_VERSION],
     capabilities: { tools: {} },
-    ...(instructionsOf(cmds, opts) === undefined ? {} : { instructions: instructionsOf(cmds, opts) }),
+    ...(instructionsOf(tree, opts) === undefined ? {} : { instructions: instructionsOf(tree, opts) }),
   })
 
   return async (message: unknown): Promise<JSONRPCResponse | undefined> => {
@@ -97,23 +98,22 @@ const callTool = async (
 
   let inputs: Record<string, unknown>
   try {
-    inputs = parseArgs(entry.cmd.spec, params?.arguments)
+    inputs = bindArgs(entry.cmd, params?.arguments)
   } catch (e) {
-    if (e instanceof ArgsError) return result(id, errorResult(e))
+    if (e instanceof InputError) return result(id, errorResult(e))
     return error(id, INTERNAL_ERROR, e instanceof Error ? e.message : String(e))
   }
 
   try {
-    const run = entry.cmd.run as (i: Record<string, unknown>) => unknown
-    const value = await run(inputs)
-    return result(id, toolResult(value, entry.cmd.spec.outputs !== undefined))
+    const value = await entry.cmd.run(inputs)
+    return result(id, toolResult(value, outputFields(entry.cmd.outputs) !== undefined))
   } catch (e) {
     return result(id, errorResult(e))
   }
 }
 
-const instructionsOf = (cmds: SubCmds, opts: McpOpts): string | undefined =>
-  opts.instructions ?? (cmds.description === '' ? undefined : cmds.description)
+const instructionsOf = (tree: Namespace, opts: McpOpts): string | undefined =>
+  opts.instructions ?? (tree.description === '' ? undefined : tree.description)
 
 const isRequest = (m: unknown): m is JSONRPCRequest =>
   typeof m === 'object' &&
@@ -133,5 +133,5 @@ const error = (id: RequestId | null, code: number, message: string, data?: unkno
   error: { code, message, ...(data === undefined ? {} : { data }) },
 })
 
-/** A `Cmd` is the unit a tool wraps; re-exported for adapter typing. */
-export type { Cmd }
+/** A `Command` is the unit a tool wraps; re-exported for adapter typing. */
+export type { Command }

@@ -1,3 +1,4 @@
+// ---------------- Types --------------------------
 export const KIND = {
   bool: 'bool',
   string: 'string',
@@ -6,140 +7,173 @@ export const KIND = {
   list: 'list',
 } as const
 
+export type Kind = (typeof KIND)[keyof typeof KIND]
+
 /**
- * One named operation: what it is called, what it does, what it takes and what
- * it produces. Deliberately says nothing about *how* it runs — that belongs to
- * whichever target renders it.
- *
- * Targets may add their own fields by augmenting this interface. Convention: a
- * single flat optional key when the concept is unmistakably that target's (as
- * `cli` does with `positionals`); two or more fields go in one object named for
- * the target (`http?: { method, path }`), so the keys stay attributable.
+ * A union rather than one interface with a union-typed `kind`, so that
+ * `TypeOf` distributes over it. An interface would collapse to `never`.
  */
-export interface Spec {
-  name: string
-  description: string
-  inputs?: InputsSpec
-  outputs?: OutputsSpec
-}
-
-export interface FieldsSpec extends Record<string, Field> {}
-
-export interface InputsSpec extends Record<string, InputField> {}
-
-export interface OutputsSpec extends Record<string, OutputField> {}
-
-export interface Field {
-  d: string
-  kind: Type
-}
-
-export interface InputField<T extends Type = Type> extends Field {
-  default?: any
-  alias?: string[]
-  /**
-   * The only values accepted. Every target that can express a closed set uses
-   * this — a CLI rejects anything else and completes the choices, JSON Schema
-   * calls it `enum`, a chat command calls it `choices`.
-   */
-  values?: string[]
-  kind: T
-}
-
-export interface OutputField<T extends Type = Type> extends Field {
-  kind: T
-}
-
-export interface Primitive {
-  type: typeof KIND.bool | typeof KIND.string | typeof KIND.num
-}
+export type Primitive = { kind: typeof KIND.bool } | { kind: typeof KIND.string } | { kind: typeof KIND.num }
 
 export interface Optional<T extends Primitive> {
-  type: typeof KIND.optional
+  kind: typeof KIND.optional
   item: T
 }
 
 export interface List<T extends Primitive> {
-  type: typeof KIND.list
+  kind: typeof KIND.list
   item: T
 }
 
 export type Type = Primitive | Optional<Primitive> | List<Primitive>
 
-// ---------------- Command --------------------------
-export interface Cmd {
-  spec: Spec
-  run: Run<this['spec']>
+/** The value a type describes. */
+export type TypeOf<T extends Type> =
+  T extends Optional<infer I>
+    ? TypeOf<I> | undefined
+    : T extends List<infer I>
+      ? TypeOf<I>[]
+      : T extends { kind: typeof KIND.bool }
+        ? boolean
+        : T extends { kind: typeof KIND.string }
+          ? string
+          : T extends { kind: typeof KIND.num }
+            ? number
+            : never
+
+/** The primitive inside a type, unwrapping `optional` and `list`. */
+export type ItemOf<T extends Type> = T extends Optional<infer I> ? I : T extends List<infer I> ? I : T
+
+// ---------------- Fields --------------------------
+export interface Field<T extends Type = Type> {
+  description: string
+  type: T
+  /**
+   * The only values accepted. Every target that can express a closed set uses
+   * this — a CLI rejects anything else and completes the choices, JSON Schema
+   * calls it `enum`, a chat command calls it `choices`.
+   */
+  values?: readonly TypeOf<ItemOf<T>>[]
+}
+
+export interface InputField<T extends Type = Type> extends Field<T> {
+  default?: TypeOf<T>
+  alias?: string[]
+}
+
+export interface OutputField<T extends Type = Type> extends Field<T> {}
+
+export interface FieldMap extends Record<string, Field> {}
+export interface InputFields extends Record<string, InputField> {}
+export interface OutputFields extends Record<string, OutputField> {}
+
+// ---------------- Operation --------------------------
+/**
+ * Adapter-owned configuration, keyed by adapter (`{ cli: { … } }`). Core never
+ * reads it; each adapter reads its own key, types it, and ignores the rest.
+ *
+ * This is the only thing core says about adapters. A field here is per-command
+ * data, so two adapters can never collide and importing one cannot change what
+ * another sees.
+ */
+export type Meta = Readonly<Record<string, unknown>>
+
+/**
+ * One named operation: what it is called, what it does, what it takes and what
+ * it produces. Deliberately says nothing about *how* it runs — that belongs to
+ * whichever target renders it.
+ *
+ * `outputs` is either a map of named fields or a single unnamed value, which is
+ * the same choice every target faces: structured content or text, a JSON object
+ * or a body, printed fields or a document.
+ */
+export interface Operation {
+  name: string
+  description: string
+  inputs?: InputFields
+  outputs?: OutputFields | OutputField
+  meta?: Meta
 }
 
 /**
- * A group of commands.
+ * An operation bound to an implementation.
  *
- * A named group occupies one segment of the path a target addresses commands by
- * (`app db migrate`); an unnamed group is a plain container whose commands live
- * in its parent's namespace, which is what the root of a tree usually is.
+ * `run` is declared in method shorthand deliberately: parameters written that
+ * way are checked bivariantly even under `strictFunctionTypes`, which is what
+ * lets a `Command<ConcreteOp>` sit in a `ReadonlyArray<Command>`. An arrow
+ * property would be contravariant, and every tree literal would need a cast.
  */
-export interface SubCmds {
-  name?: string
-  description?: string
-  cmds: ReadonlyArray<Cmd | SubCmds>
+export type Command<O extends Operation = Operation> = O & {
+  run(input: InputOf<O>): Result<OutputOf<O>>
 }
 
-export type Run<S extends Spec> = (
-  ...args: S['inputs'] extends InputsSpec ? [Fields<S['inputs']>] : []
-) => S['outputs'] extends OutputsSpec ? Result<Fields<S['outputs']>> : Result<void>
+export type Handler<O extends Operation = Operation> = (input: InputOf<O>) => Result<OutputOf<O>>
+
 export type Result<T> = T | Promise<T>
 
-// ---------------- Builder --------------------------
-export type Builder<S extends Record<string, unknown>> = BaseBuilder<S> & (S extends Spec ? Build<S> : Struct<never>)
-
-interface Build<S extends Spec> {
-  cmd: (run: Run<S>) => { spec: Computed<S>; run: Run<S> }
-  spec: () => Computed<S>
-}
-
-export interface BaseBuilder<S extends Struct> {
-  description: <T extends string>(d: T) => Builder<S & { description: T }>
-  inputs: <D extends FieldsSpec>(d: D) => Builder<S & { inputs: D }>
-  outputs: <D extends FieldsSpec>(d: D) => Builder<S & { outputs: D }>
+/**
+ * A group of commands, occupying one segment of the path a target addresses
+ * commands by (`app db migrate`).
+ *
+ * The name is required: a namespace is precisely the thing that contributes a
+ * segment, and a transparent one would only duplicate what spreading the
+ * commands into the parent already does.
+ */
+export interface Namespace {
+  name: string
+  description?: string
+  cmds: ReadonlyArray<Command | Namespace>
 }
 
 // ---------------- Inference --------------------------
-export type Fields<D extends Record<string, Field>> = {
-  [K in FieldReq<D>['r']]: FieldTypes<D>[K]
-} & { [K in FieldReq<D>['o']]?: FieldTypes<D>[K] }
+export type InputOf<O extends Operation> = [O['inputs']] extends [undefined]
+  ? Record<string, never>
+  : O['inputs'] extends InputFields
+    ? Fields<O['inputs']>
+    : Record<string, unknown>
 
-export type Inputs<S extends Spec> = S['inputs'] extends InputsSpec ? Fields<S['inputs']> : never
+export type OutputOf<O extends Operation> = [O['outputs']] extends [undefined]
+  ? void
+  : O['outputs'] extends OutputField
+    ? TypeOf<O['outputs']['type']>
+    : O['outputs'] extends OutputFields
+      ? Fields<O['outputs']>
+      : unknown
 
-export type Outputs<S extends Spec> = S['outputs'] extends OutputsSpec ? Fields<S['outputs']> : never
+/** The object a field map describes: optional-kinded fields become optional keys. */
+export type Fields<D extends FieldMap> = Computed<
+  { [K in RequiredKeys<D>]: TypeOf<D[K]['type']> } & { [K in OptionalKeys<D>]?: TypeOf<D[K]['type']> }
+>
 
-export declare namespace Fields {
-  export type Primitives<D extends FieldsSpec> = {
-    [K in keyof D]: D[K]['kind'] extends Primitive ? K : never
-  }[keyof D]
-  export type Types<D extends FieldsSpec> = { [K in keyof D]: K }[keyof D]
+export type FieldKeys<D extends FieldMap> = keyof D & string
+
+export type PrimitiveKeys<D extends FieldMap> = {
+  [K in keyof D]: D[K]['type'] extends Primitive ? K & string : never
+}[keyof D]
+
+type RequiredKeys<D extends FieldMap> = {
+  [K in keyof D]: D[K]['type'] extends Optional<Primitive> ? never : K
+}[keyof D]
+
+type OptionalKeys<D extends FieldMap> = {
+  [K in keyof D]: D[K]['type'] extends Optional<Primitive> ? K : never
+}[keyof D]
+
+// ---------------- Builder --------------------------
+export type Builder<O extends Struct> = BaseBuilder<O> & (O extends Operation ? Complete<O> : unknown)
+
+export interface BaseBuilder<O extends Struct> {
+  description: <D extends string>(d: D) => Builder<O & { description: D }>
+  inputs: <I extends InputFields>(i: I) => Builder<O & { inputs: I }>
+  outputs: <T extends OutputFields | OutputField>(o: T) => Builder<O & { outputs: T }>
+  meta: <M extends Meta>(m: M) => Builder<O & { meta: M }>
 }
 
-type TypeOfType<T extends Type> = T['type'] extends typeof KIND.bool
-  ? boolean
-  : T['type'] extends typeof KIND.string
-    ? string
-    : T['type'] extends typeof KIND.num
-      ? number
-      : T extends Optional<infer T>
-        ? TypeOfType<T> | undefined
-        : T extends List<infer T>
-          ? TypeOfType<T>[]
-          : never
-
-type FieldReq<D extends Record<string, Field>> = {
-  [K in keyof D]: D[K]['kind'] extends Optional<Primitive> ? { r: never; o: K } : { r: K; o: never }
-}[keyof D]
-type FieldTypes<D extends Record<string, Field>> = {
-  [K in keyof D]: TypeOfType<D[K]['kind']>
+interface Complete<O extends Operation> {
+  op: () => Computed<O>
+  cmd: (run: Handler<O>) => Command<O>
 }
 
 // ---------------- Type utils --------------------------
-export type Intersect<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void ? I : never
 export type Struct<V = any> = Record<string, V>
 export type Computed<T> = { [K in keyof T]: T[K] } & {}

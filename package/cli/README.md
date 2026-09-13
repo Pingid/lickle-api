@@ -1,8 +1,8 @@
 # @lickle/cmd-cli
 
-Run a `@lickle/cmd-core` command spec as a command-line program.
+Run a `@lickle/cmd-core` operation as a command-line program.
 
-The spec is the single source of truth: it describes the inputs, outputs and
+The operation is the single source of truth: it describes the inputs, outputs and
 subcommands, and this package derives the argument parsing, the `--help` text
 and the printed result from it. Nothing is declared twice.
 
@@ -14,28 +14,30 @@ pnpm add @lickle/cmd-cli
 
 ```ts
 // todo.ts
-import { run, spec, type SubCmds } from '@lickle/cmd-cli'
+import { bool, cli, cmd, field, list, num, run, string, type Namespace } from '@lickle/cmd-cli'
 
-const add = spec.cmd(
-  {
-    name: 'add',
-    description: 'Add a task.',
-    inputs: {
-      title: spec.field({ d: 'What to do.', kind: spec.string }),
-      tag: spec.field({ d: 'Tags to file it under.', kind: spec.list(spec.string), alias: ['t'] }),
-      done: spec.field({ d: 'Mark it done immediately.', kind: spec.bool, alias: ['d'] }),
+const add = cmd(
+  cli(
+    {
+      name: 'add',
+      description: 'Add a task.',
+      inputs: {
+        title: field({ description: 'What to do.', type: string }),
+        tag: field({ description: 'Tags to file it under.', type: list(string), alias: ['t'] }),
+        done: field({ description: 'Mark it done immediately.', type: bool, alias: ['d'] }),
+      },
+      outputs: {
+        id: field({ description: 'The new task id.', type: num }),
+        title: field({ description: 'What it says.', type: string }),
+        tags: field({ description: 'Tags it was filed under.', type: list(string) }),
+      },
     },
-    outputs: {
-      id: spec.field({ d: 'The new task id.', kind: spec.num }),
-      title: spec.field({ d: 'What it says.', kind: spec.string }),
-      tags: spec.field({ d: 'Tags it was filed under.', kind: spec.list(spec.string) }),
-    },
-    positionals: ['title'],
-  },
+    { positionals: ['title'] },
+  ),
   (i) => ({ id: 1, title: i.done ? `${i.title} (done)` : i.title, tags: i.tag }),
 )
 
-const cmds: SubCmds = { name: 'todo', description: 'A tiny task list.', cmds: [add] }
+const cmds: Namespace = { name: 'todo', description: 'A tiny task list.', cmds: [add] }
 
 process.exit(await run(cmds, process.argv.slice(2)))
 ```
@@ -48,6 +50,9 @@ tags:
   - home
   - errands
 ```
+
+`i` is typed from the operation — `i.title` is a `string`, `i.tag` a `string[]`,
+`i.done` a `boolean` — and so is the object you return. No annotation, no cast.
 
 ## Output: text or json
 
@@ -63,9 +68,17 @@ $ todo add 'buy milk' --output json
 }
 ```
 
+A command whose `outputs` is a single unnamed field returns a document rather
+than a set of fields, and text output prints it bare — that is how `completions`
+prints a shell script:
+
+```ts
+outputs: field({ description: 'The completion script.', type: string })
+```
+
 ## Help
 
-`--help`/`-h` works on every command and group, written from the spec:
+`--help`/`-h` works on every command and namespace, written from the operation:
 
 ```console
 $ todo add --help
@@ -93,24 +106,24 @@ Output:
 Inputs become flags. Those named in `positionals` can also be given by position,
 in order — only the last may be a `list`, which then takes everything left over.
 
-| Kind                 | On the command line                         | When omitted |
+| Type                 | On the command line                         | When omitted |
 | -------------------- | ------------------------------------------- | ------------ |
 | `string`, `num`      | `--title x`, `--title=x`, `-t x`, `-t=x`    | required     |
 | `bool`               | `--done`, `--no-done`, `--done=false`, `-d` | `false`      |
 | `list(string)`       | repeat it: `-t home -t errands`             | `[]`         |
 | `optional(string)`   | same as its item                            | unset        |
-| any with a `default` | same as its kind                            | the default  |
+| any with a `default` | same as its type                            | the default  |
 
 Single-character aliases become short flags and can be grouped (`-dt home`);
 longer ones become additional long flags. `--` ends flag parsing, so everything
-after it is positional. `--help`, `-h`, `--output` and `-o` are reserved — a spec
-that uses those names for its own inputs is rejected.
+after it is positional. `--help`, `-h`, `--output` and `-o` are reserved — an
+operation that uses those names for its own inputs is rejected.
 
 An input can also name the only values it accepts. The parser rejects anything
 else, help shows the choices in place of the type, and completions offer them:
 
 ```ts
-mode: spec.field({ d: 'How to apply them.', kind: spec.string, values: ['fast', 'safe'] })
+mode: field({ description: 'How to apply them.', type: string, values: ['fast', 'safe'] })
 ```
 
 ```console
@@ -118,24 +131,50 @@ $ todo add 'buy milk' --mode sloppy
 error: invalid value for 'mode': 'sloppy' (expected 'fast' or 'safe')
 ```
 
-## Subcommands
+## Positionals are command-line configuration
 
-A group with a `name` takes a path segment; an unnamed group just lends its
-commands to its parent, which is what the root usually is.
+Which inputs may be given by position is this target's business — MCP has no
+notion of it, and a GitHub Action's inputs are always named. So it rides on the
+operation's `meta` under the `cli` key rather than on the operation itself:
 
 ```ts
-const cmds: SubCmds = {
+{ name: 'add', description: 'Add a task.', inputs: { … }, meta: { cli: { positionals: ['title'] } } }
+```
+
+The `cli()` helper writes exactly that, and additionally checks the keys against
+the operation's inputs, so a positional naming an input that does not exist is a
+compile error rather than a runtime one:
+
+```ts
+cli({ name: 'add', description: 'Add a task.', inputs: { title } }, { positionals: ['nope'] })
+//                                                                                 ~~~~~~
+// Type '["nope"]' is not assignable to type '[..."title"[], "title"]'.
+```
+
+Because it is per-operation data, importing this package cannot change what any
+other target sees, and two targets can never collide over a key.
+
+## Subcommands
+
+A namespace takes a path segment. Every namespace is named: commands that should
+live in the parent's own namespace are simply listed there.
+
+```ts
+const cmds: Namespace = {
   name: 'todo',
   description: 'A tiny task list.',
-  cmds: [
-    { name: 'task', description: 'Task commands.', cmds: [add, remove] },
-    { cmds: [version] }, // `todo version`, not `todo misc version`
-  ],
+  cmds: [{ name: 'task', description: 'Task commands.', cmds: [add, remove] }, version],
 }
 ```
 
 ```console
 $ todo task add 'buy milk'
+```
+
+To fold in a list assembled elsewhere, spread it:
+
+```ts
+cmds: [...builtins, version]
 ```
 
 ## Completions
@@ -150,7 +189,7 @@ const cmds = withCompletions({ name: 'todo', description: 'A tiny task list.', c
 ```console
 $ todo completions fish
 # todo completions for fish.
-# Generated from the command spec — regenerate when the CLI changes.
+# Generated from the command tree — regenerate when the CLI changes.
 # Install: todo completions fish > ~/.config/fish/completions/todo.fish
 
 complete -c todo -n '__fish_use_subcommand' -a 'add' -d 'Add a task.'
@@ -171,12 +210,12 @@ $ todo completions zsh  > "${fpath[1]}/_todo"
 $ todo completions fish > ~/.config/fish/completions/todo.fish
 ```
 
-To place the command yourself — inside a group, say — use the underlying
+To place the command yourself — inside a namespace, say — use the underlying
 factory. It takes the tree as a thunk, since the command lives inside the tree
 it describes:
 
 ```ts
-const cmds: SubCmds = {
+const cmds: Namespace = {
   name: 'todo',
   cmds: [add, { name: 'util', cmds: [completionsCmd(() => cmds)] }],
 }
@@ -195,6 +234,16 @@ you, which also makes it straightforward to test.
 | `0`  | the command ran, or help was asked for                             |
 | `1`  | the command threw                                                  |
 | `2`  | the invocation was wrong: unknown command, bad flag, missing input |
+
+A command that wants to report a caller's mistake rather than its own failure
+throws core's `InputError`. That is portable: exit `2` here, `isError: true` over
+MCP, `400` over HTTP.
+
+```ts
+import { InputError } from '@lickle/cmd-cli'
+
+throw new InputError('that task is already done')
+```
 
 Errors go to stderr in the selected format, so a `-o json` caller gets something
 parseable whatever goes wrong:
@@ -218,7 +267,7 @@ $ todo add -o json
 run(cmds, argv, opts?: RunOpts): Promise<number>
 
 interface RunOpts {
-  name?: string // program name in usage lines; defaults to the root group's name
+  name?: string // program name in usage lines; defaults to the root namespace's name
   stdout?: (s: string) => void
   stderr?: (s: string) => void
 }

@@ -1,18 +1,18 @@
 import { expect, test } from 'vitest'
 import { isFormat, render, renderError } from './output.ts'
-import { field, list, num, string, type OutputsSpec } from './spec.ts'
+import { field, list, num, string, type OutputFields } from './index.ts'
 
 const outputs = {
-  id: field({ d: 'id', kind: string }),
-  count: field({ d: 'count', kind: num }),
-} as OutputsSpec
+  id: field({ description: 'id', type: string }),
+  count: field({ description: 'count', type: num }),
+} as OutputFields
 
-test('text output aligns one key per line, in spec order', () => {
+test('text output aligns one key per line, in the declared order', () => {
   expect(render({ count: 2, id: 'abc' }, outputs, 'text')).toBe('id:    abc\ncount: 2')
 })
 
 test('text output expands lists', () => {
-  const spec = { tags: field({ d: 'tags', kind: list(string) }) } as OutputsSpec
+  const spec = { tags: field({ description: 'tags', type: list(string) }) } as OutputFields
   expect(render({ tags: ['a', 'b'] }, spec, 'text')).toBe('tags:\n  - a\n  - b')
   expect(render({ tags: [] }, spec, 'text')).toBe('tags:')
 })
@@ -39,4 +39,10 @@ test('isFormat narrows the accepted values', () => {
   expect(isFormat('text')).toBe(true)
   expect(isFormat('json')).toBe(true)
   expect(isFormat('yaml')).toBe(false)
+})
+
+test('a single unnamed output renders as the bare value', () => {
+  const script = field({ description: 'The script.', type: string })
+  expect(render('#!/bin/sh\necho hi', script, 'text')).toBe('#!/bin/sh\necho hi')
+  expect(render(['a', 'b'], script, 'text')).toBe('a\nb')
 })

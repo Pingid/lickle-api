@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { cmd, commands, field, string } from '@lickle/cmd-core'
+import { cmd, ns, field, string } from '@lickle/cmd-core'
 import { httpHandler } from './http.ts'
 import { server } from './server.ts'
 import { JSONRPC_VERSION, PARSE_ERROR } from './types.ts'
@@ -8,13 +8,13 @@ const echo = cmd(
   {
     name: 'echo',
     description: 'Echo a word.',
-    inputs: { word: field({ d: 'The word.', kind: string }) },
-    outputs: { word: field({ d: 'The word.', kind: string }) },
+    inputs: { word: field({ description: 'The word.', type: string }) },
+    outputs: { word: field({ description: 'The word.', type: string }) },
   },
   (i: { word: string }) => ({ word: i.word }),
 )
 
-const handler = httpHandler(server(commands({ name: 'app', description: 'Demo.', cmds: [echo] }), { onWarn: () => {} }))
+const handler = httpHandler(server(ns({ name: 'app', description: 'Demo.', cmds: [echo] }), { onWarn: () => {} }))
 
 const post = (body: unknown) =>
   handler(new Request('https://example.test/mcp', { method: 'POST', body: JSON.stringify(body) }))

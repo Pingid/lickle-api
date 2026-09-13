@@ -1,4 +1,5 @@
-import type { OutputsSpec } from '@lickle/cmd-core'
+import { outputField, outputFields } from '@lickle/cmd-core'
+import type { Operation } from '@lickle/cmd-core'
 
 export const FORMATS = ['text', 'json'] as const
 
@@ -7,22 +8,27 @@ export type Format = (typeof FORMATS)[number]
 export const isFormat = (v: string): v is Format => (FORMATS as readonly string[]).includes(v)
 
 /**
- * Render a command's outputs for the terminal.
+ * Render a command's result for the terminal.
  *
- * `json` emits the value verbatim; `text` emits one `key: value` line per field,
- * ordered by the spec so output is stable regardless of insertion order.
- * Commands with no outputs render to the empty string, which the runner prints
- * as nothing at all.
+ * `json` emits the value verbatim. `text` emits one `key: value` line per field,
+ * ordered by the operation so output is stable regardless of insertion order —
+ * or the bare value when the operation declares a single unnamed output, which
+ * is what a document needs: a completion script has no field name to print.
+ *
+ * A command with no declared outputs renders to the empty string, which the
+ * runner prints as nothing at all.
  */
-export const render = (value: unknown, outputs: OutputsSpec | undefined, format: Format): string => {
+export const render = (value: unknown, outputs: Operation['outputs'], format: Format): string => {
   if (format === 'json') return value === undefined ? '' : JSON.stringify(value, null, 2)
   if (value === undefined || value === null) return ''
+
+  if (outputField(outputs) !== undefined) return Array.isArray(value) ? value.map(scalar).join('\n') : String(value)
+
   if (typeof value !== 'object') return String(value)
 
   const record = value as Record<string, unknown>
-  const keys = [...new Set([...Object.keys(outputs ?? {}), ...Object.keys(record)])].filter(
-    (k) => record[k] !== undefined,
-  )
+  const fields = outputFields(outputs) ?? {}
+  const keys = [...new Set([...Object.keys(fields), ...Object.keys(record)])].filter((k) => record[k] !== undefined)
 
   const width = Math.max(0, ...keys.filter((k) => !Array.isArray(record[k])).map((k) => k.length))
 

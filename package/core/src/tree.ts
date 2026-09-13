@@ -1,36 +1,36 @@
-import { isSubCmds } from './cons.ts'
-import type { Cmd, SubCmds } from './types.ts'
+import { isNamespace } from './cons.ts'
+import type { Command, Namespace } from './types.ts'
 
-export interface Child {
-  name: string
-  description: string
-  node: Cmd | SubCmds
+/** A node in the tree, with the path that reaches it. */
+export interface Located<T> {
+  /** Segments leading here, program name excluded. */
+  path: string[]
+  node: T
 }
 
 /**
- * Direct children of a group, flattening unnamed groups since they contribute
- * their commands to the parent's namespace rather than a path segment.
+ * Match one path segment against a namespace's children.
+ *
+ * There is no `children()` helper: since every namespace is named, a
+ * namespace's children are exactly its `cmds`.
  */
-export const children = (group: SubCmds): Child[] =>
-  group.cmds.flatMap((node): Child[] => {
-    if (!isSubCmds(node)) return [{ name: node.spec.name, description: node.spec.description, node }]
-    if (node.name === undefined) return children(node)
-    return [{ name: node.name, description: node.description ?? '', node }]
-  })
-
-/** Match one path segment against a group's children. */
-export const findChild = (group: SubCmds, segment: string): Cmd | SubCmds | undefined =>
-  children(group).find((c) => c.name === segment)?.node
-
-export interface Reached extends Child {
-  /** Segments leading here, program name excluded. */
-  path: string[]
-}
+export const findChild = (ns: Namespace, segment: string): Command | Namespace | undefined =>
+  ns.cmds.find((c) => c.name === segment)
 
 /** Every node in the tree, depth first, each with the path that reaches it. */
-export const walk = (group: SubCmds, path: string[] = []): Reached[] =>
-  children(group).flatMap((child) => {
-    const here = [...path, child.name]
-    const reached: Reached = { ...child, path: here }
-    return isSubCmds(child.node) ? [reached, ...walk(child.node, here)] : [reached]
+export const walk = (ns: Namespace, path: string[] = []): Located<Command | Namespace>[] =>
+  ns.cmds.flatMap((node) => {
+    const here = [...path, node.name]
+    const located: Located<Command | Namespace> = { path: here, node }
+    return isNamespace(node) ? [located, ...walk(node, here)] : [located]
   })
+
+/**
+ * Every callable command in the tree, with its path. Namespaces contribute path
+ * segments but are not themselves callable, so only leaves appear.
+ *
+ * This is the shape every target consumes: a target is a function from these to
+ * whatever it emits.
+ */
+export const operations = (ns: Namespace): Located<Command>[] =>
+  walk(ns).filter((l): l is Located<Command> => !isNamespace(l.node))

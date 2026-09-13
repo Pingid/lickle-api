@@ -1,19 +1,19 @@
 import { execFileSync } from 'node:child_process'
 import { expect, test } from 'vitest'
 import { SHELLS, completion, isShell, withCompletions } from './complete.ts'
-import { bool, cmd, field, list, string, type SubCmds } from './spec.ts'
+import { bool, cmd, field, list, string, type Namespace } from './index.ts'
 
 const migrate = cmd(
   {
     name: 'migrate',
     description: "Apply the database's pending migrations.",
     inputs: {
-      target: field({ d: 'Migration to stop at.', kind: string }),
-      tag: field({ d: "Only migrations you've tagged.", kind: list(string), alias: ['t'] }),
-      mode: field({ d: 'How to apply them.', kind: string, values: ['fast', 'safe'], alias: ['m'] }),
-      dry: field({ d: 'Do not write anything.', kind: bool, alias: ['d'] }),
+      target: field({ description: 'Migration to stop at.', type: string }),
+      tag: field({ description: "Only migrations you've tagged.", type: list(string), alias: ['t'] }),
+      mode: field({ description: 'How to apply them.', type: string, values: ['fast', 'safe'], alias: ['m'] }),
+      dry: field({ description: 'Do not write anything.', type: bool, alias: ['d'] }),
     },
-    positionals: ['target'],
+    meta: { cli: { positionals: ['target'] } },
   },
   () => {},
 )
@@ -21,10 +21,10 @@ const migrate = cmd(
 const seed = cmd({ name: 'seed', description: 'Seed the database.' }, () => {})
 const version = cmd({ name: 'version', description: 'Print the version.' }, () => {})
 
-const cmds: SubCmds = withCompletions({
+const cmds: Namespace = withCompletions({
   name: 'app',
   description: 'Demo CLI.',
-  cmds: [{ name: 'db', description: 'Database commands.', cmds: [migrate, seed] }, { cmds: [version] }],
+  cmds: [{ name: 'db', description: 'Database commands.', cmds: [migrate, seed] }, version],
 })
 
 test('isShell narrows the supported targets', () => {
@@ -51,7 +51,7 @@ test('descriptions containing a quote are escaped, not left to break the script'
 test('the program name comes from opts, then the root group', () => {
   expect(completion(cmds, 'bash')).toContain('complete -F _app_complete app')
   expect(completion(cmds, 'bash', { name: 'other' })).toContain('complete -F _other_complete other')
-  expect(completion({ cmds: [version] }, 'fish')).toContain('complete -c cli ')
+  expect(completion({ name: 'cli', cmds: [version] }, 'fish')).toContain('complete -c cli ')
 })
 
 test('zsh marks value-taking flags and repeats list flags', () => {
