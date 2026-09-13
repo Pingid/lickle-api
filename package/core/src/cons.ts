@@ -1,4 +1,6 @@
 import { KIND } from './types.ts'
+import { attach, type FieldType, type Schema } from './standard.ts'
+import { fields } from './schema.ts'
 import type {
   Builder,
   Choices,
@@ -8,14 +10,23 @@ import type {
   Namespace,
   Operation,
   Primitive,
+  FieldMap,
   Struct,
   Type,
 } from './types.ts'
 
 // ---------------- Constructors --------------------------
-export const op = <const O extends Operation>(o: O) => o
+/**
+ * An operation literal. Its input and output maps are made Standard Schemas in
+ * place, so a plain literal is enough — nothing has to be wrapped by hand.
+ */
+export const op = <const O extends Operation>(o: O): O => {
+  if (o.inputs !== undefined) fields(o.inputs)
+  if (o.outputs !== undefined && !('type' in o.outputs)) fields(o.outputs as FieldMap)
+  return o
+}
 
-export const type = <const T extends Type>(t: T) => t
+export const type = <const T extends Type>(t: T): Schema<T> => attach(t)
 export const num = type({ kind: KIND.num })
 export const string = type({ kind: KIND.string })
 export const bool = type({ kind: KIND.bool })
@@ -39,9 +50,9 @@ export const list = <T extends Primitive>(item: T) => type({ kind: KIND.list, it
  * field is a compile error rather than an `any` that reaches every projection.
  * Output fields use this too — an `InputField` satisfies `OutputField`.
  */
-export const field = <const T extends Type>(f: InputField<T>): InputField<T> => f
+export const field = <const T extends FieldType>(f: InputField<T>): InputField<T> => f
 
-export const cmd = <const O extends Operation>(o: O, run: Handler<O>): Command<O> => ({ ...o, run })
+export const cmd = <const O extends Operation>(o: O, run: Handler<O>): Command<O> => ({ ...op(o), run })
 
 // ---------------- Command tree --------------------------
 /** Narrow a tree node: a namespace holds `cmds`, a command holds a `run`. */

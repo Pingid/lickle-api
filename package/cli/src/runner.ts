@@ -41,7 +41,7 @@ export const run = async (tree: Namespace, argv: string[], opts: RunOpts = {}): 
 
   try {
     const { target, rest } = resolve(tree, argv, path)
-    const parsed = parseArgs(isNamespace(target) ? namespaceOp(target) : target, rest)
+    const parsed = await parseArgs(isNamespace(target) ? namespaceOp(target) : target, rest)
     output = parsed.output
 
     if (isNamespace(target)) {

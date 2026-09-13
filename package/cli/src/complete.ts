@@ -1,9 +1,8 @@
-import { choice, cmd, field, isNamespace, string, valuesOf, walk } from '@lickle/cmd-core'
+import { choice, cmd, field, isNamespace, shapeOf, string, walk } from '@lickle/cmd-core'
 import type { Command, Namespace, Operation } from '@lickle/cmd-core'
 import { isBoolFlag } from './kind.ts'
 import { cli, positionalsOf } from './meta.ts'
 import { FORMATS } from './output.ts'
-import { isList } from '@lickle/cmd-core'
 import type { InputField } from '@lickle/cmd-core'
 
 export const SHELLS = ['bash', 'zsh', 'fish'] as const
@@ -87,12 +86,12 @@ const optionsOf = (op: Operation): Option[] =>
   Object.entries(op.inputs ?? {})
     .filter(([key]) => !positionalsOf(op).includes(key))
     .map(([key, f]) => {
-      const values = valuesOf(f.type)
+      const { list, values } = shapeOf(f.type)
       return {
         names: flagNames(key, f),
         description: f.description,
         takesValue: !isBoolFlag(f.type),
-        repeatable: isList(f.type),
+        repeatable: list,
         ...(values === undefined ? {} : { values: values.map(String) }),
       }
     })
@@ -101,7 +100,7 @@ const optionsOf = (op: Operation): Option[] =>
 const positionalValuesOf = (op: Operation): string[] =>
   positionalsOf(op).flatMap((key) => {
     const f = op.inputs?.[key]
-    return f === undefined ? [] : (valuesOf(f.type) ?? []).map(String)
+    return f === undefined ? [] : (shapeOf(f.type).values ?? []).map(String)
   })
 
 /** Same spellings the help column lists: shorts, the key, then long aliases. */

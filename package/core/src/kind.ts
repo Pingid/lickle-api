@@ -23,12 +23,9 @@ export const itemOf = (t: Type): Primitive => (isOptional(t) || isList(t) ? t.it
 export const hasDefault = (f: InputField): boolean => f.default !== undefined
 
 /**
- * The closed set a type admits, unwrapping `optional` and `list` — so a
- * `list(choice([…]))` reports the members its items are drawn from.
+ * The closed set a core type admits, unwrapping `optional` and `list`.
  *
- * This is the single accessor every target uses to find out that something has
- * a fixed set of values: the CLI to complete and label it, JSON Schema to emit
- * `enum`, `bind` to reject anything else.
+ * Targets should prefer `shapeOf`, which answers this for a foreign schema too.
  */
 export const valuesOf = (t: Type): Choices | undefined => {
   const item = itemOf(t)

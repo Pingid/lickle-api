@@ -1,6 +1,6 @@
-import { isList, itemOf, outputField, outputFields } from '@lickle/cmd-core'
+import { outputField, outputFields, shapeOf } from '@lickle/cmd-core'
 import type { InputField, Namespace, Operation } from '@lickle/cmd-core'
-import { isBoolFlag, isRequired, typeLabel } from './kind.ts'
+import { isBoolFlag, isRequired, typeLabel, valueLabel } from './kind.ts'
 import { positionalsOf } from './meta.ts'
 
 type Row = [left: string, right: string]
@@ -68,7 +68,7 @@ export const cmdHelp = (op: Operation, path: string[]): string => {
 /** Usage token for a positional: `<name>`, `[name]` or `[name...]`. */
 const token = (key: string, field: InputField | undefined): string => {
   if (field === undefined) return `<${key}>`
-  if (isList(field.type)) return `[${key}...]`
+  if (shapeOf(field.type).list) return `[${key}...]`
   return isRequired(field) ? `<${key}>` : `[${key}]`
 }
 
@@ -82,7 +82,7 @@ const flags = (key: string, field: InputField): string => {
   const names = [...shorts, `--${key}`, ...aliases.filter((a) => a.length > 1).map((a) => `--${a}`)]
   const column = shorts.length > 0 ? names.join(', ') : `    ${names.join(', ')}`
   if (isBoolFlag(field.type)) return column
-  return `${column} <${typeLabel(itemOf(field.type))}${isList(field.type) ? '...' : ''}>`
+  return `${column} <${valueLabel(field.type)}>`
 }
 
 const defaultNote = (field: InputField): string | undefined =>

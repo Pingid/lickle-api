@@ -1,5 +1,9 @@
-import { hasDefault, isOptional, valuesOf } from './kind.ts'
-import type { Choices, InputField, InputFields } from './types.ts'
+import type { StandardSchemaV1 } from '@standard-schema/spec'
+import { hasDefault } from './kind.ts'
+import { schemaOf, shapeOf } from './standard.ts'
+import type { InputField, InputFields } from './types.ts'
+
+export { oneOf, quote } from './standard.ts'
 
 /**
  * A caller-facing rejection: what was supplied does not match the operation.
@@ -17,37 +21,44 @@ export class InputError extends Error {
 }
 
 /**
- * How a target turns what it received into the declared types.
+ * What a target decides about absent inputs.
  *
- * Core walks the fields, applies defaults and checks `values`; the target says
- * what a value looks like on its wire and which absences it tolerates. The
- * split is deliberate: the traversal is the same everywhere, the judgement is
- * not.
+ * Validation is no longer here: a field's `type` is a Standard Schema and
+ * validates itself, which is what lets a zod schema sit where a core type does.
+ * What is left is genuinely per-target — the command line substitutes `false`
+ * for an absent bool and `[]` for an absent list, a tool call substitutes
+ * nothing — and how each names an input it did not get.
  */
 export interface Policy {
   /**
-   * A stand-in when nothing was supplied and the field has no default — the
-   * command line's `false` for a bool and `[]` for a list. Return `undefined`
-   * to leave the key unset, which makes the input required.
+   * A stand-in when nothing was supplied and the field has no default. Return
+   * `undefined` to leave the key unset, which makes the input required.
    */
   fallback?: (field: InputField, key: string) => unknown
-  /** Adapt and validate one supplied value. Throws `InputError` if it does not fit. */
-  coerce: (field: InputField, raw: unknown, key: string) => unknown
   /** Message for a required input that was not supplied. */
   missing?: (field: InputField, key: string) => string
+  /** Vendor options passed through to every validator. */
+  options?: StandardSchemaV1.Options
 }
 
 /**
- * Bind raw per-key values onto an operation's inputs: coerce what was given,
- * fill in defaults and fallbacks, reject what is missing or out of range.
+ * Bind raw per-key values onto an operation's inputs: validate what was given,
+ * fill in defaults and fallbacks, reject what is missing.
+ *
+ * Asynchronous because `StandardSchemaV1.validate` may be — an async refinement
+ * is a large part of why anyone reaches for an outside schema library.
  */
-export const bind = (fields: InputFields, given: Record<string, unknown>, policy: Policy): Record<string, unknown> => {
+export const bind = async (
+  fields: InputFields,
+  given: Record<string, unknown>,
+  policy: Policy = {},
+): Promise<Record<string, unknown>> => {
   const out: Record<string, unknown> = {}
 
   for (const [key, field] of Object.entries(fields)) {
     const raw = given[key]
     if (raw !== undefined && raw !== null) {
-      out[key] = checkChoice(key, field, policy.coerce(field, raw, key))
+      out[key] = await validate(key, field, raw, policy)
       continue
     }
     if (hasDefault(field)) {
@@ -59,38 +70,24 @@ export const bind = (fields: InputFields, given: Record<string, unknown>, policy
       out[key] = fallback
       continue
     }
-    if (isOptional(field.type)) continue
+    if (shapeOf(field.type).optional) continue
     throw new InputError(policy.missing?.(field, key) ?? `missing required input '${key}'`)
   }
 
   return out
 }
 
-/**
- * Reject anything outside a `choice`, per element for a list.
- *
- * One implementation and one message for every target: the command line and a
- * tool call word this identically because neither writes it.
- */
-const checkChoice = (key: string, field: InputField, value: unknown): unknown => {
-  const values: Choices | undefined = valuesOf(field.type)
-  if (values === undefined) return value
+const validate = async (key: string, field: InputField, raw: unknown, policy: Policy): Promise<unknown> => {
+  const result = await schemaOf(field.type)['~standard'].validate(raw, policy.options)
+  if (result.issues === undefined) return result.value
 
-  const check = (v: unknown, label: string): void => {
-    if (!(values as readonly unknown[]).includes(v))
-      throw new InputError(`invalid value for '${label}': ${quote(v)} (expected ${oneOf(values)})`)
-  }
-
-  if (Array.isArray(value)) value.forEach((v, i) => check(v, `${key}[${i}]`))
-  else check(value, key)
-  return value
+  const first = result.issues[0]!
+  throw new InputError(`invalid value for '${label(key, first.path)}': ${first.message}`)
 }
 
-export const quote = (v: unknown): string => (typeof v === 'string' ? `'${v}'` : String(v))
-
-/** `'a', 'b' or 'c'` — the tail of an "expected …" message. */
-export const oneOf = (values: readonly unknown[]): string => {
-  const quoted = values.map(quote)
-  const last = quoted.pop()
-  return quoted.length === 0 ? (last ?? '') : `${quoted.join(', ')} or ${last}`
-}
+/** `tag[1]`, `where.since` — the key, then wherever inside it the issue was. */
+const label = (key: string, path: StandardSchemaV1.Issue['path']): string =>
+  (path ?? []).reduce<string>((acc, segment) => {
+    const at = typeof segment === 'object' ? segment.key : segment
+    return typeof at === 'number' ? `${acc}[${at}]` : `${acc}.${String(at)}`
+  }, key)

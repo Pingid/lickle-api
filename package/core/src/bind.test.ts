@@ -1,16 +1,15 @@
 import { expect, test } from 'vitest'
 import { InputError, bind, oneOf } from './bind.ts'
-import { choice, bool, field, list, num, optional, string } from './cons.ts'
-import { isList } from './kind.ts'
+import { bool, choice, field, list, num, optional, string } from './cons.ts'
+import { shapeOf } from './standard.ts'
 import type { Policy } from './bind.ts'
-
-/** A policy that takes values as given — what a JSON-shaped target does. */
-const asGiven: Policy = { coerce: (_f, raw) => raw }
 
 /** A policy that substitutes the way a command line does. */
 const cli: Policy = {
-  ...asGiven,
-  fallback: (f) => (isList(f.type) ? [] : f.type.kind === 'bool' ? false : undefined),
+  fallback: (f) => {
+    const shape = shapeOf(f.type)
+    return shape.list ? [] : shape.type === 'boolean' ? false : undefined
+  },
 }
 
 const inputs = {
@@ -21,8 +20,8 @@ const inputs = {
   n: field({ description: 'How many.', type: num, default: 3 }),
 }
 
-test('supplied values pass through; defaults fill in', () => {
-  expect(bind(inputs, { title: 'x', tag: ['a'], done: true }, asGiven)).toEqual({
+test('supplied values pass through; defaults fill in', async () => {
+  expect(await bind(inputs, { title: 'x', tag: ['a'], done: true })).toEqual({
     title: 'x',
     tag: ['a'],
     done: true,
@@ -30,46 +29,64 @@ test('supplied values pass through; defaults fill in', () => {
   })
 })
 
-test('an optional input with nothing supplied is simply absent', () => {
-  expect('note' in bind(inputs, { title: 'x', tag: [], done: false }, asGiven)).toBe(false)
+test('an optional input with nothing supplied is simply absent', async () => {
+  expect('note' in (await bind(inputs, { title: 'x', tag: [], done: false }))).toBe(false)
 })
 
-test('a missing required input throws, with the policy’s wording', () => {
-  expect(() => bind(inputs, {}, asGiven)).toThrow(InputError)
-  expect(() => bind(inputs, {}, asGiven)).toThrow("missing required input 'title'")
-  expect(() => bind(inputs, {}, { ...asGiven, missing: (_f, key) => `missing required option '--${key}'` })).toThrow(
+test('a missing required input throws, with the policy’s wording', async () => {
+  await expect(bind(inputs, {})).rejects.toThrow(InputError)
+  await expect(bind(inputs, {})).rejects.toThrow("missing required input 'title'")
+  await expect(bind(inputs, {}, { missing: (_f, key) => `missing required option '--${key}'` })).rejects.toThrow(
     "missing required option '--title'",
   )
 })
 
-test('a fallback makes an input not required — the command line’s rule', () => {
-  expect(bind(inputs, { title: 'x' }, cli)).toEqual({ title: 'x', tag: [], done: false, n: 3 })
+test('a fallback makes an input not required — the command line’s rule', async () => {
+  expect(await bind(inputs, { title: 'x' }, cli)).toEqual({ title: 'x', tag: [], done: false, n: 3 })
 })
 
-test('a declared default wins over a fallback', () => {
+test('a declared default wins over a fallback', async () => {
   const withDefault = { tag: field({ description: 'Tags.', type: list(string), default: ['a'] }) }
-  expect(bind(withDefault, {}, cli)).toEqual({ tag: ['a'] })
+  expect(await bind(withDefault, {}, cli)).toEqual({ tag: ['a'] })
 })
 
-test('values are checked after coercion, per element for a list', () => {
+// The type validates itself now, so both wires get the same coercion: a command
+// line hands it '42' and a tool call hands it 42.
+test('every core type coerces to what it declares', async () => {
+  const typed = {
+    n: field({ description: 'n', type: num }),
+    b: field({ description: 'b', type: bool }),
+    s: field({ description: 's', type: string }),
+  }
+  expect(await bind(typed, { n: '42', b: 'yes', s: 'x' })).toEqual({ n: 42, b: true, s: 'x' })
+  expect(await bind(typed, { n: 42, b: true, s: 7 })).toEqual({ n: 42, b: true, s: '7' })
+})
+
+test('what cannot be coerced is rejected, naming the key', async () => {
+  const typed = { n: field({ description: 'n', type: num }) }
+  await expect(bind(typed, { n: 'lots' })).rejects.toThrow("invalid value for 'n': 'lots' (expected a number)")
+  await expect(bind(typed, { n: {} })).rejects.toThrow("invalid value for 'n': {} (expected a number)")
+})
+
+test('a list still demands a real array', async () => {
+  await expect(bind(inputs, { title: 'x', tag: 'a' })).rejects.toThrow(
+    "invalid value for 'tag': 'a' (expected an array)",
+  )
+})
+
+test('choices are checked after coercion, per element for a list', async () => {
   const mode = { mode: field({ description: 'How.', type: choice(['fast', 'safe']) }) }
-  expect(bind(mode, { mode: 'fast' }, asGiven)).toEqual({ mode: 'fast' })
-  expect(() => bind(mode, { mode: 'sloppy' }, asGiven)).toThrow(
+  expect(await bind(mode, { mode: 'fast' })).toEqual({ mode: 'fast' })
+  await expect(bind(mode, { mode: 'sloppy' })).rejects.toThrow(
     "invalid value for 'mode': 'sloppy' (expected 'fast' or 'safe')",
   )
 
-  const tags = { tag: field({ description: 'Tags.', type: list(choice(['a', 'b'])) }) }
-  expect(() => bind(tags, { tag: ['a', 'z'] }, asGiven)).toThrow("invalid value for 'tag[1]': 'z'")
-})
+  const level = { level: field({ description: 'Level.', type: choice([1, 2, 3]) }) }
+  expect(await bind(level, { level: '2' })).toEqual({ level: 2 })
+  await expect(bind(level, { level: 9 })).rejects.toThrow("invalid value for 'level': 9 (expected 1, 2 or 3)")
 
-test('coercion errors surface from the policy', () => {
-  const strict: Policy = {
-    coerce: (_f, raw, key) => {
-      if (typeof raw !== 'string') throw new InputError(`'${key}' expects a string`)
-      return raw
-    },
-  }
-  expect(() => bind(inputs, { title: 1 }, strict)).toThrow("'title' expects a string")
+  const tags = { tag: field({ description: 'Tags.', type: list(choice(['a', 'b'])) }) }
+  await expect(bind(tags, { tag: ['a', 'z'] })).rejects.toThrow("invalid value for 'tag[1]': 'z'")
 })
 
 test('oneOf reads as a sentence tail', () => {

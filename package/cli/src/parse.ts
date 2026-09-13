@@ -1,7 +1,7 @@
-import { bind, foldPrimitive, isList, itemOf } from '@lickle/cmd-core'
-import type { InputField, InputFields, Operation, Policy, Primitive } from '@lickle/cmd-core'
+import { bind } from '@lickle/cmd-core'
+import type { InputField, InputFields, Operation, Policy } from '@lickle/cmd-core'
 import { CliError } from './errors.ts'
-import { isBoolFlag } from './kind.ts'
+import { isBoolFlag, isListFlag } from './kind.ts'
 import { positionalsOf } from './meta.ts'
 import { isFormat, type Format } from './output.ts'
 import { tokenise } from './tokenise.ts'
@@ -43,14 +43,17 @@ export const peekFormat = (argv: string[]): Format => {
  * Parse `argv` (already stripped of the command path) against an operation.
  *
  * Tokenising is separate from validating: the grammar runs first and produces
- * raw per-key values, then `bind` applies this target's policy — coerce from
- * strings, substitute `false` for an absent bool and `[]` for an absent list,
- * and name a missing input the way a command line names it.
+ * raw per-key strings, then `bind` hands each to its field's own schema. What is
+ * left as this target's policy is only what it substitutes for an absent input —
+ * `false` for a bool, `[]` for a list — and how it names one it did not get.
+ *
+ * Asynchronous because a field's type may be any Standard Schema, and those may
+ * validate asynchronously.
  *
  * When `--help` is present, parsing stops short of validating required inputs —
  * asking for help should never be an error.
  */
-export const parseArgs = (op: Operation, argv: string[]): ParsedArgs => {
+export const parseArgs = async (op: Operation, argv: string[]): Promise<ParsedArgs> => {
   const inputs: InputFields = op.inputs ?? {}
   assertNoReservedNames(op, inputs)
 
@@ -109,14 +112,14 @@ export const parseArgs = (op: Operation, argv: string[]): ParsedArgs => {
       continue
     }
     if (value === true) throw new CliError(`option '${display}' requires a value`)
-    if (isList(field.type)) push(raw, key, value)
+    if (isListFlag(field.type)) push(raw, key, value)
     else raw[key] = value
   }
 
   if (help) return { inputs: {}, help, output }
 
   bindPositionals(op, inputs, positionalArgs, raw)
-  return { inputs: bind(inputs, raw, policyFor(op)), help, output }
+  return { inputs: await bind(inputs, raw, policyFor(op)), help, output }
 }
 
 /** The name behind `--no-x`, when `x` is a bool flag. */
@@ -143,7 +146,7 @@ const bindPositionals = (op: Operation, inputs: InputFields, args: string[], raw
     if (field === undefined) throw new Error(`operation '${op.name}': positional '${key}' is not declared in inputs`)
 
     // Only the last positional may be a list, and it takes everything left.
-    if (index === positionals.length - 1 && isList(field.type)) {
+    if (index === positionals.length - 1 && isListFlag(field.type)) {
       for (; p < args.length; p++) push(raw, key, args[p]!)
       continue
     }
@@ -158,49 +161,21 @@ const bindPositionals = (op: Operation, inputs: InputFields, args: string[], raw
 }
 
 /**
- * The command line's half of the contract with `bind`: everything arrives as a
- * string, an absent bool is `false`, an absent list is `[]`, and a missing input
- * is named as an argument or an option depending on how it can be given.
+ * The command line's half of the contract with `bind`.
+ *
+ * Coercion is gone from here: a field's type is a Standard Schema and validates
+ * itself, which is what lets a zod schema sit where a core type does. What is
+ * left is genuinely this target's — an absent bool is `false`, an absent list is
+ * `[]`, and a missing input is named as an argument or an option depending on
+ * how it can be given.
  */
 const policyFor = (op: Operation): Policy => {
   const positionals = new Set<string>(positionalsOf(op))
   return {
-    fallback: (field) => (isList(field.type) ? [] : isBoolFlag(field.type) ? false : undefined),
-    coerce: (field, value, key) => {
-      const item = itemOf(field.type)
-      if (isList(field.type)) return asList(value).map((v) => coerce(item, v, key))
-      return coerce(item, text(value), key)
-    },
+    fallback: (field) => (isListFlag(field.type) ? [] : isBoolFlag(field.type) ? false : undefined),
     missing: (_field, key) =>
       positionals.has(key) ? `missing required argument '<${key}>'` : `missing required option '--${key}'`,
   }
-}
-
-const asList = (value: unknown): string[] => (Array.isArray(value) ? (value as string[]) : [text(value)])
-
-const text = (value: unknown): string => (value === true ? 'true' : String(value))
-
-const coerce = (item: Primitive, raw: string, key: string): unknown =>
-  foldPrimitive<unknown>(item, {
-    num: () => parseNum(raw, key),
-    bool: () => parseBool(raw, key),
-    string: () => raw,
-    // Membership is `bind`'s to enforce; all this has to get right is the JS
-    // type the members are drawn from.
-    choice: (values) => (typeof values[0] === 'number' ? parseNum(raw, key) : raw),
-  })
-
-const parseNum = (raw: string, key: string): number => {
-  const n = Number(raw)
-  if (raw.trim() === '' || Number.isNaN(n)) throw new CliError(`'${key}' expects a number, got '${raw}'`)
-  return n
-}
-
-const parseBool = (raw: string, display: string): boolean => {
-  const v = raw.toLowerCase()
-  if (v === 'true' || v === '1' || v === 'yes') return true
-  if (v === 'false' || v === '0' || v === 'no') return false
-  throw new CliError(`'${display}' expects a boolean, got '${raw}'`)
 }
 
 const assertNoReservedNames = (op: Operation, inputs: InputFields): void => {

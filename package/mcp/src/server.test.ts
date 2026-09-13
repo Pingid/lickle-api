@@ -125,7 +125,7 @@ test('bad arguments are a tool result too, naming what was wrong', async () => {
     name: 'db_migrate',
     arguments: { target: 'v3', tags: 'a', dry: false },
   })
-  expect(wrongType.content[0].text).toMatch(/'tags' expects an array, got string/)
+  expect(wrongType.content[0].text).toMatch(/invalid value for 'tags': 'a' \(expected an array\)/)
 
   const badChoice = await ok('tools/call', {
     name: 'db_migrate',

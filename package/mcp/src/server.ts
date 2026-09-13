@@ -98,7 +98,7 @@ const callTool = async (
 
   let inputs: Record<string, unknown>
   try {
-    inputs = bindArgs(entry.cmd, params?.arguments)
+    inputs = await bindArgs(entry.cmd, params?.arguments)
   } catch (e) {
     if (e instanceof InputError) return result(id, errorResult(e))
     return error(id, INTERNAL_ERROR, e instanceof Error ? e.message : String(e))

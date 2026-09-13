@@ -1,55 +1,26 @@
-import { InputError, bind, foldPrimitive, isList, itemOf } from '@lickle/cmd-core'
-import type { InputFields, Operation, Policy, Primitive } from '@lickle/cmd-core'
+import { InputError, bind } from '@lickle/cmd-core'
+import type { InputFields, Operation } from '@lickle/cmd-core'
 
 /**
  * Check an incoming `arguments` object against an operation's inputs and fill in
  * defaults.
  *
- * Values arrive already JSON-typed, so nothing is coerced from strings the way
- * the CLI parser must — a wrong type is an error, not a hint. Everything past
- * that (defaults, `values`, naming a missing input) is core's `bind`, so the two
- * targets cannot drift apart on the parts that are not policy.
+ * The per-value work belongs to the field's own type, which is a Standard Schema
+ * and validates itself — so a zod schema on a field applies here exactly as it
+ * does on a command line, and neither target can drift from the other. What is
+ * left here is the one rule that is this target's: a tool call substitutes
+ * nothing for an absent input, and naming an unexpected one is worth doing well
+ * because a model reads it and corrects itself.
  */
-export const bindArgs = (op: Operation, args: Record<string, unknown> = {}): Record<string, unknown> => {
+export const bindArgs = async (op: Operation, args: Record<string, unknown> = {}): Promise<Record<string, unknown>> => {
   const inputs: InputFields = op.inputs ?? {}
 
   const unknown = Object.keys(args).filter((key) => !(key in inputs))
   if (unknown.length > 0)
     throw new InputError(`unknown ${plural('argument', unknown.length)} ${list(unknown)}; expected ${expected(inputs)}`)
 
-  return bind(inputs, args, POLICY)
+  return bind(inputs, args, { missing: (_field, key) => `missing required argument '${key}'` })
 }
-
-/** No fallbacks: an absent bool or list is absent, not `false` or `[]`. */
-const POLICY: Policy = {
-  coerce: (field, given, key) => {
-    const type = field.type
-    if (isList(type)) {
-      if (!Array.isArray(given)) throw new InputError(`'${key}' expects an array, got ${typeName(given)}`)
-      return given.map((item, i) => checkPrimitive(`${key}[${i}]`, type.item, item))
-    }
-    return checkPrimitive(key, itemOf(type), given)
-  },
-  missing: (_field, key) => `missing required argument '${key}'`,
-}
-
-const checkPrimitive = (label: string, kind: Primitive, given: unknown): unknown => {
-  const want = foldPrimitive(kind, {
-    num: () => 'number',
-    bool: () => 'boolean',
-    string: () => 'string',
-    // Membership is `bind`'s to enforce; this only checks the JS type the
-    // members are drawn from, so a wrong-typed argument still reads well.
-    choice: (values) => (typeof values[0] === 'number' ? 'number' : 'string'),
-  })
-
-  if (typeof given !== want) throw new InputError(`'${label}' expects a ${want}, got ${typeName(given)}`)
-  if (want === 'number' && !Number.isFinite(given)) throw new InputError(`'${label}' expects a finite number`)
-
-  return given
-}
-
-const typeName = (v: unknown): string => (v === null ? 'null' : Array.isArray(v) ? 'an array' : typeof v)
 
 const list = (items: readonly string[]): string => items.map((i) => `'${i}'`).join(', ')
 

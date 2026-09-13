@@ -135,11 +135,23 @@ to _find_ the tool is a protocol error.
 { "content": [{ "type": "text", "text": "invalid value for 'priority': 'urgent' (expected 'low' or 'high')" }], "isError": true }
 ```
 
-Arguments arrive already JSON-typed, so nothing is coerced from strings the way the CLI
-parser must — a wrong type is an error, not a hint. Everything past that (defaults, `values`,
-naming a missing input) is core's shared `bind`, so the two targets cannot drift apart on the
-parts that are not policy. A command that throws core's `InputError` is a caller error on
-every target.
+A field's type is a [Standard Schema](https://standardschema.dev) and validates itself, so one
+validator serves both wires: a command line hands it `'2'` and a tool call hands it `2`. Values
+are coerced to what the type declares rather than rejected for arriving stringly typed — which
+suits a model that sends `"2"` for a number, at the cost of not correcting it. What cannot be
+coerced is still rejected, and a `list` still demands a real array. A command that throws core's
+`InputError` is a caller error on every target.
+
+Because the type is the schema, an outside library's constraints reach the model directly — a
+`z.string().email()` field contributes its own `format` and `pattern` to `inputSchema`, which is
+more than core's own types could say:
+
+```ts
+import { z } from 'zod'
+
+email: field({ description: 'Who to tell.', type: z.string().email() })
+// → { "type": "string", "format": "email", "pattern": "…", "description": "Who to tell." }
+```
 
 ## Two things to know
 

@@ -6,6 +6,9 @@ The operation is the single source of truth: it describes the inputs, outputs an
 subcommands, and this package derives the argument parsing, the `--help` text
 and the printed result from it. Nothing is declared twice.
 
+Fields carry core's own small type set or any
+[Standard Schema](https://standardschema.dev) — zod, valibot, arktype.
+
 ```sh
 pnpm add @lickle/cmd-cli
 ```
@@ -121,6 +124,7 @@ in order — only the last may be a `list`, which then takes everything left ove
 | `list(string)`       | repeat it: `-t home -t errands`             | `[]`         |
 | `optional(string)`   | same as its item                            | unset        |
 | `choice([…])`        | one of the members: `--mode fast`           | required     |
+| any Standard Schema  | as its JSON Schema describes it             | see above    |
 | any with a `default` | same as its type                            | the default  |
 
 Single-character aliases become short flags and can be grouped (`-dt home`);
@@ -155,6 +159,52 @@ error: invalid value for 'mode': 'sloppy' (expected 'fast' or 'safe')
 $ todo add 'buy milk' --level 9
 error: invalid value for 'level': 9 (expected 1, 2 or 3)
 ```
+
+## Bring your own schema
+
+A field's `type` is a [Standard Schema](https://standardschema.dev), so anything
+implementing it — zod, valibot, arktype — can sit where a core type does:
+
+```ts
+import { z } from 'zod'
+
+inputs: {
+  email: field({ description: 'Who to tell.', type: z.string().email() }),
+  count: field({ description: 'How many.', type: z.coerce.number().int().min(1) }),
+  mode: field({ description: 'How.', type: z.enum(['fast', 'safe']) }),
+}
+```
+
+`i.email` is a `string` and `i.mode` is `'fast' | 'safe'`, inferred from the
+schema. The library's rejections come back as ordinary usage errors:
+
+```console
+$ todo add x --email nope
+error: invalid value for 'email': Invalid email address
+
+$ todo add x --email a@b.com --count 0
+error: invalid value for 'count': Too small: expected number to be >=1
+```
+
+**How help and completions still work.** Standard Schema is validate-only — it
+cannot say whether a flag takes a value, repeats, or has members. Those come
+from the JSON Schema the library already emits, so a zod-typed input renders and
+completes like a native one:
+
+```console
+      --count <num>       How many. (required)
+      --mode <fast|safe>  How. (required)
+      --quiet             Stay quiet.          # z.boolean(), so --no-quiet works
+  -t, --tag <string...>   Tags.                # z.array(), so it repeats
+      --note <string>     A note.              # z.optional(), so not required
+```
+
+A validator implementing neither `StandardJSONSchemaV1` nor anything else falls
+back to a required, value-taking flag; `withJsonSchema(schema, json)` fills the
+gap if you hit one.
+
+**Core types are still the default.** They describe shape; an outside schema adds
+constraints core does not model. Use whichever the input actually needs.
 
 ## Positionals are command-line configuration
 

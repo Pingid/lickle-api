@@ -18,55 +18,77 @@ const spec = makeOp({
 
 const valid = { who: 'ada', count: 2, flag: true, tags: ['a'] }
 
-test('valid arguments pass through, with defaults applied', () => {
-  expect(bindArgs(spec, valid)).toEqual({ ...valid, mode: 'safe' })
+test('valid arguments pass through, with defaults applied', async () => {
+  expect(await bindArgs(spec, valid)).toEqual({ ...valid, mode: 'safe' })
 })
 
-test('an optional left out stays out rather than becoming undefined', () => {
-  expect('note' in bindArgs(spec, valid)).toBe(false)
+test('an optional left out stays out rather than becoming undefined', async () => {
+  expect('note' in (await bindArgs(spec, valid))).toBe(false)
 })
 
-test('a missing required argument is rejected', () => {
-  expect(() => bindArgs(spec, { count: 2, flag: true, tags: [] })).toThrow(/missing required argument 'who'/)
-  expect(() => bindArgs(spec, valid)).not.toThrow()
+test('a missing required argument is rejected', async () => {
+  await expect(bindArgs(spec, { count: 2, flag: true, tags: [] })).rejects.toThrow(/missing required argument 'who'/)
+  await expect(bindArgs(spec, valid)).resolves.toBeDefined()
 })
 
-test('values arrive JSON-typed, so a wrong type is an error and never coerced', () => {
-  // Unlike the CLI, which must read everything out of argv strings.
-  expect(() => bindArgs(spec, { ...valid, count: '2' })).toThrow(/'count' expects a number, got string/)
-  expect(() => bindArgs(spec, { ...valid, flag: 'true' })).toThrow(/'flag' expects a boolean, got string/)
-  expect(() => bindArgs(spec, { ...valid, who: 5 })).toThrow(/'who' expects a string, got number/)
+// A field's type is a Standard Schema and validates itself, so one validator
+// serves both wires: a command line hands it '2' and a tool call hands it 2.
+// The cost is that a model sending a stringly-typed number is accommodated
+// rather than corrected.
+test('values are coerced to what the type declares', async () => {
+  expect(await bindArgs(spec, { ...valid, count: '2' })).toMatchObject({ count: 2 })
+  expect(await bindArgs(spec, { ...valid, flag: 'true' })).toMatchObject({ flag: true })
+  expect(await bindArgs(spec, { ...valid, who: 5 })).toMatchObject({ who: '5' })
 })
 
-test('list items are checked individually, and reported by index', () => {
-  expect(() => bindArgs(spec, { ...valid, tags: 'a' })).toThrow(/'tags' expects an array, got string/)
-  expect(() => bindArgs(spec, { ...valid, tags: ['a', 2] })).toThrow(/'tags\[1\]' expects a string, got number/)
+test('what cannot be coerced is still rejected', async () => {
+  await expect(bindArgs(spec, { ...valid, count: 'lots' })).rejects.toThrow(
+    /invalid value for 'count': 'lots' \(expected a number\)/,
+  )
+  await expect(bindArgs(spec, { ...valid, who: {} })).rejects.toThrow(
+    /invalid value for 'who': \{\} \(expected a string\)/,
+  )
 })
 
-test('a value outside the declared set is rejected', () => {
-  expect(() => bindArgs(spec, { ...valid, mode: 'sloppy' })).toThrow(
+test('list items are checked individually, and reported by index', async () => {
+  // An array is still demanded: the command line builds one from repeated flags
+  // before validating, so nothing needs the leniency here.
+  await expect(bindArgs(spec, { ...valid, tags: 'a' })).rejects.toThrow(
+    /invalid value for 'tags': 'a' \(expected an array\)/,
+  )
+  await expect(bindArgs(spec, { ...valid, tags: ['a', {}] })).rejects.toThrow(
+    /invalid value for 'tags\[1\]': \{\} \(expected a string\)/,
+  )
+})
+
+test('a value outside the declared set is rejected', async () => {
+  await expect(bindArgs(spec, { ...valid, mode: 'sloppy' })).rejects.toThrow(
     /invalid value for 'mode': 'sloppy' \(expected 'fast' or 'safe'\)/,
   )
 })
 
-test('unknown arguments are rejected, naming what was expected', () => {
-  expect(() => bindArgs(spec, { ...valid, nope: 1 })).toThrow(/unknown argument 'nope'; expected 'who', 'count'/)
+test('unknown arguments are rejected, naming what was expected', async () => {
+  await expect(bindArgs(spec, { ...valid, nope: 1 })).rejects.toThrow(
+    /unknown argument 'nope'; expected 'who', 'count'/,
+  )
 })
 
-test('null is treated as absent, so a default still applies', () => {
-  expect(bindArgs(spec, { ...valid, mode: null })['mode']).toBe('safe')
+test('null is treated as absent, so a default still applies', async () => {
+  expect((await bindArgs(spec, { ...valid, mode: null }))['mode']).toBe('safe')
 })
 
-test('a non-finite number is rejected', () => {
-  expect(() => bindArgs(spec, { ...valid, count: Number.NaN })).toThrow(/finite number/)
+test('a non-finite number is rejected', async () => {
+  await expect(bindArgs(spec, { ...valid, count: Number.NaN })).rejects.toThrow(
+    /invalid value for 'count': NaN \(expected a number\)/,
+  )
 })
 
-test('rejections are InputError, which the server turns into a tool result', () => {
-  expect(() => bindArgs(spec, {})).toThrow(InputError)
+test('rejections are InputError, which the server turns into a tool result', async () => {
+  await expect(bindArgs(spec, {})).rejects.toThrow(InputError)
 })
 
-test('a spec with no inputs accepts nothing', () => {
+test('a spec with no inputs accepts nothing', async () => {
   const bare = makeOp({ name: 'b', description: 'b' })
-  expect(bindArgs(bare, {})).toEqual({})
-  expect(() => bindArgs(bare, { a: 1 })).toThrow(/expected no arguments/)
+  expect(await bindArgs(bare, {})).toEqual({})
+  await expect(bindArgs(bare, { a: 1 })).rejects.toThrow(/expected no arguments/)
 })

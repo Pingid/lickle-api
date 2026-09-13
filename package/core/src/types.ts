@@ -1,3 +1,7 @@
+import type { FieldType, ValueOf } from './standard.ts'
+
+export type { FieldType, ValueOf }
+
 // ---------------- Types --------------------------
 export const KIND = {
   bool: 'bool',
@@ -68,17 +72,20 @@ export type TypeOf<T extends Type> =
 export type ItemOf<T extends Type> = T extends Optional<infer I> ? I : T extends List<infer I> ? I : T
 
 // ---------------- Fields --------------------------
-export interface Field<T extends Type = Type> {
+// Type-only import: `standard.ts` imports values from here, so this direction
+// must never carry runtime bindings.
+
+export interface Field<T extends FieldType = FieldType> {
   description: string
   type: T
 }
 
-export interface InputField<T extends Type = Type> extends Field<T> {
-  default?: TypeOf<T>
+export interface InputField<T extends FieldType = FieldType> extends Field<T> {
+  default?: ValueOf<T>
   alias?: string[]
 }
 
-export interface OutputField<T extends Type = Type> extends Field<T> {}
+export interface OutputField<T extends FieldType = FieldType> extends Field<T> {}
 
 export interface FieldMap extends Record<string, Field> {}
 export interface InputFields extends Record<string, InputField> {}
@@ -152,14 +159,14 @@ export type InputOf<O extends Operation> = [O['inputs']] extends [undefined]
 export type OutputOf<O extends Operation> = [O['outputs']] extends [undefined]
   ? void
   : O['outputs'] extends OutputField
-    ? TypeOf<O['outputs']['type']>
+    ? ValueOf<O['outputs']['type']>
     : O['outputs'] extends OutputFields
       ? Fields<O['outputs']>
       : unknown
 
 /** The object a field map describes: optional-kinded fields become optional keys. */
 export type Fields<D extends FieldMap> = Computed<
-  { [K in RequiredKeys<D>]: TypeOf<D[K]['type']> } & { [K in OptionalKeys<D>]?: TypeOf<D[K]['type']> }
+  { [K in RequiredKeys<D>]: ValueOf<D[K]['type']> } & { [K in OptionalKeys<D>]?: ValueOf<D[K]['type']> }
 >
 
 export type FieldKeys<D extends FieldMap> = keyof D & string

@@ -1,4 +1,4 @@
-import { hasDefault, isOptional, outputFields, type Operation } from '@lickle/cmd-core'
+import { hasDefault, outputFields, shapeOf, type Operation } from '@lickle/cmd-core'
 import { dump } from 'js-yaml'
 
 import type * as Action from './types.ts'
@@ -13,7 +13,7 @@ export const yml = (op: Operation, runner: (op: Operation) => Action.HttpsJsonSc
       // both would tell the caller to supply something the action supplies.
       {
         description: value.description,
-        required: !isOptional(value.type) && !hasDefault(value),
+        required: !shapeOf(value.type).optional && !hasDefault(value),
         default: value.default,
       },
     ]),
