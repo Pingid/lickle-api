@@ -24,7 +24,7 @@ operations it serves.
 ```ts
 // todo.ts
 import { server, serveStdio } from '@lickle/cmd-mcp'
-import { cmd, field, list, ns, num, string } from '@lickle/cmd-mcp/cmd'
+import { choice, cmd, field, list, ns, num, string } from '@lickle/cmd-mcp/cmd'
 
 const add = cmd(
   {
@@ -33,7 +33,7 @@ const add = cmd(
     inputs: {
       title: field({ description: 'What to do.', type: string }),
       tag: field({ description: 'Tags to file it under.', type: list(string) }),
-      priority: field({ description: 'How urgent.', type: string, values: ['low', 'high'], default: 'low' }),
+      priority: field({ description: 'How urgent.', type: choice(['low', 'high']), default: 'low' }),
     },
     outputs: {
       id: field({ description: 'The new task id.', type: num }),
@@ -52,8 +52,8 @@ const cmds = ns({
 await serveStdio(server(cmds))
 ```
 
-`i` is typed from the operation — `i.title` is a `string`, `i.priority` a `string` — and so is
-the object you return.
+`i` is typed from the operation — `i.title` is a `string`, `i.priority` is `'low' | 'high'`
+because `choice` is a type rather than an annotation — and so is the object you return.
 
 Each field's `description` becomes the schema `description`, which is exactly the prose a
 model needs and the part hand-written tool schemas usually skip:
@@ -77,8 +77,8 @@ model needs and the part hand-written tool schemas usually skip:
 ```
 
 Nested commands get a flat name from their path (`task add` → `task_add`), held to
-`^[A-Za-z0-9_-]{1,64}$`. `values` becomes `enum`; a map of `outputs` becomes `outputSchema`,
-and the command's return value comes back as `structuredContent`.
+`^[A-Za-z0-9_-]{1,64}$`. A `choice` becomes `enum` — on outputs too; a map of `outputs`
+becomes `outputSchema`, and the command's return value comes back as `structuredContent`.
 
 An operation whose `outputs` is a single unnamed field returns a document rather than a set
 of fields. `structuredContent` is an object, so such a tool declares no `outputSchema` and

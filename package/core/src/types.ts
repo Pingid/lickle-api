@@ -3,6 +3,7 @@ export const KIND = {
   bool: 'bool',
   string: 'string',
   num: 'num',
+  choice: 'choice',
   optional: 'optional',
   list: 'list',
 } as const
@@ -10,10 +11,30 @@ export const KIND = {
 export type Kind = (typeof KIND)[keyof typeof KIND]
 
 /**
+ * The members of a `choice`, held to one JS type so that every projection can
+ * name it: JSON Schema wants a `type` alongside its `enum`, and a command line
+ * has to know whether to parse a number.
+ */
+export type Choices = readonly string[] | readonly number[]
+
+/**
+ * A closed set of values — what other systems call an enum.
+ *
+ * It is a type rather than a field annotation because that is what it is: the
+ * set of values something may hold. Being a type is also what lets `TypeOf`
+ * report it, so a handler receives `'fast' | 'safe'` rather than `string`, and
+ * what lets `list(choice([…]))` and `optional(choice([…]))` work for free.
+ */
+export interface Choice<V extends Choices = Choices> {
+  kind: typeof KIND.choice
+  values: V
+}
+
+/**
  * A union rather than one interface with a union-typed `kind`, so that
  * `TypeOf` distributes over it. An interface would collapse to `never`.
  */
-export type Primitive = { kind: typeof KIND.bool } | { kind: typeof KIND.string } | { kind: typeof KIND.num }
+export type Primitive = { kind: typeof KIND.bool } | { kind: typeof KIND.string } | { kind: typeof KIND.num } | Choice
 
 export interface Optional<T extends Primitive> {
   kind: typeof KIND.optional
@@ -33,13 +54,15 @@ export type TypeOf<T extends Type> =
     ? TypeOf<I> | undefined
     : T extends List<infer I>
       ? TypeOf<I>[]
-      : T extends { kind: typeof KIND.bool }
-        ? boolean
-        : T extends { kind: typeof KIND.string }
-          ? string
-          : T extends { kind: typeof KIND.num }
-            ? number
-            : never
+      : T extends Choice<infer V>
+        ? V[number]
+        : T extends { kind: typeof KIND.bool }
+          ? boolean
+          : T extends { kind: typeof KIND.string }
+            ? string
+            : T extends { kind: typeof KIND.num }
+              ? number
+              : never
 
 /** The primitive inside a type, unwrapping `optional` and `list`. */
 export type ItemOf<T extends Type> = T extends Optional<infer I> ? I : T extends List<infer I> ? I : T
@@ -48,12 +71,6 @@ export type ItemOf<T extends Type> = T extends Optional<infer I> ? I : T extends
 export interface Field<T extends Type = Type> {
   description: string
   type: T
-  /**
-   * The only values accepted. Every target that can express a closed set uses
-   * this — a CLI rejects anything else and completes the choices, JSON Schema
-   * calls it `enum`, a chat command calls it `choices`.
-   */
-  values?: readonly TypeOf<ItemOf<T>>[]
 }
 
 export interface InputField<T extends Type = Type> extends Field<T> {

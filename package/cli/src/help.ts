@@ -38,7 +38,7 @@ export const cmdHelp = (op: Operation, path: string[]): string => {
   for (const key of positionals) {
     const field = inputs[key]
     if (field === undefined) continue
-    args.push([token(key, field), annotate(field.description, valueLabel(field), defaultNote(field))])
+    args.push([token(key, field), annotate(field.description, typeLabel(field.type), defaultNote(field))])
   }
   if (args.length > 0) sections.push(section('Arguments', args))
 
@@ -82,12 +82,8 @@ const flags = (key: string, field: InputField): string => {
   const names = [...shorts, `--${key}`, ...aliases.filter((a) => a.length > 1).map((a) => `--${a}`)]
   const column = shorts.length > 0 ? names.join(', ') : `    ${names.join(', ')}`
   if (isBoolFlag(field.type)) return column
-  const label = field.values ? field.values.join('|') : itemOf(field.type).kind
-  return `${column} <${label}${isList(field.type) ? '...' : ''}>`
+  return `${column} <${typeLabel(itemOf(field.type))}${isList(field.type) ? '...' : ''}>`
 }
-
-/** What a field accepts: its declared choices, else its type. */
-const valueLabel = (field: InputField): string => (field.values ? field.values.join('|') : typeLabel(field.type))
 
 const defaultNote = (field: InputField): string | undefined =>
   field.default === undefined ? undefined : `default: ${JSON.stringify(field.default)}`

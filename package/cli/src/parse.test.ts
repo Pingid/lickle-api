@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { parseArgs, peekFormat } from './parse.ts'
-import { bool, build, field, list, num, oneOf, optional, string, type Operation } from './cmd.ts'
+import { choice, bool, build, field, list, num, oneOf, optional, string, type Operation } from './cmd.ts'
 
 const mk = (inputs: Record<string, unknown>, positionals?: string[]): Operation => ({
   name: 'test',
@@ -103,19 +103,19 @@ test('--output selects the format and rejects anything else', () => {
 })
 
 test('a field with values accepts only those, as flag or positional', () => {
-  const spec = mk({ mode: field({ description: 'mode', type: string, values: ['fast', 'safe'] }) })
+  const spec = mk({ mode: field({ description: 'mode', type: choice(['fast', 'safe']) }) })
   expect(parseArgs(spec, ['--mode', 'fast']).inputs).toEqual({ mode: 'fast' })
   expect(() => parseArgs(spec, ['--mode', 'sloppy'])).toThrow(
     /invalid value for 'mode': 'sloppy' \(expected 'fast' or 'safe'\)/,
   )
 
-  const positional = mk({ mode: field({ description: 'mode', type: string, values: ['fast', 'safe'] }) }, ['mode'])
+  const positional = mk({ mode: field({ description: 'mode', type: choice(['fast', 'safe']) }) }, ['mode'])
   expect(parseArgs(positional, ['safe']).inputs).toEqual({ mode: 'safe' })
   expect(() => parseArgs(positional, ['sloppy'])).toThrow(/invalid value/)
 })
 
 test('values are checked for every item of a list', () => {
-  const spec = mk({ tag: field({ description: 'tag', type: list(string), values: ['a', 'b'] }) })
+  const spec = mk({ tag: field({ description: 'tag', type: list(choice(['a', 'b'])) }) })
   expect(parseArgs(spec, ['--tag', 'a', '--tag', 'b']).inputs).toEqual({ tag: ['a', 'b'] })
   expect(() => parseArgs(spec, ['--tag', 'a', '--tag', 'z'])).toThrow(/invalid value/)
 })

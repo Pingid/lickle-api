@@ -1,5 +1,4 @@
-import { KIND } from './types.ts'
-import { hasDefault, isList, isOptional, itemOf } from './kind.ts'
+import { foldPrimitive, hasDefault, isList, isOptional, itemOf, valuesOf } from './kind.ts'
 import type { Field, FieldMap, InputField, Primitive } from './types.ts'
 
 /**
@@ -28,18 +27,25 @@ export interface ValueSchema {
   [key: string]: unknown
 }
 
-const JSON_TYPE = {
-  [KIND.string]: 'string',
-  [KIND.num]: 'number',
-  [KIND.bool]: 'boolean',
-} as const satisfies Record<Primitive['kind'], ValueSchema['type']>
+/**
+ * The JSON type a primitive carries. A `choice` takes it from its members,
+ * which is why this folds rather than reading a static map.
+ */
+const jsonType = (p: Primitive): ValueSchema['type'] =>
+  foldPrimitive(p, {
+    string: () => 'string',
+    num: () => 'number',
+    bool: () => 'boolean',
+    choice: (values) => (typeof values[0] === 'number' ? 'number' : 'string'),
+  })
 
 /** The schema for one field's value, unwrapping `optional` and `list`. */
 export const fieldSchema = (field: Field): ValueSchema => {
   const type = field.type
 
-  const item: ValueSchema = { type: JSON_TYPE[itemOf(type).kind] }
-  if (field.values !== undefined) item.enum = [...field.values]
+  const item: ValueSchema = { type: jsonType(itemOf(type)) }
+  const values = valuesOf(type)
+  if (values !== undefined) item.enum = [...values]
 
   const schema: ValueSchema = isList(type) ? { type: 'array', items: item } : item
   if (field.description !== '') schema.description = field.description

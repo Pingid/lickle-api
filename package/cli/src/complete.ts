@@ -1,6 +1,5 @@
-import { cmd, field, isNamespace, string, walk } from '@lickle/cmd-core'
+import { choice, cmd, field, isNamespace, string, valuesOf, walk } from '@lickle/cmd-core'
 import type { Command, Namespace, Operation } from '@lickle/cmd-core'
-import { CliError } from './errors.ts'
 import { isBoolFlag } from './kind.ts'
 import { cli, positionalsOf } from './meta.ts'
 import { FORMATS } from './output.ts'
@@ -87,17 +86,23 @@ const subcommandsOf = (ns: Namespace) =>
 const optionsOf = (op: Operation): Option[] =>
   Object.entries(op.inputs ?? {})
     .filter(([key]) => !positionalsOf(op).includes(key))
-    .map(([key, f]) => ({
-      names: flagNames(key, f),
-      description: f.description,
-      takesValue: !isBoolFlag(f.type),
-      repeatable: isList(f.type),
-      ...(f.values === undefined ? {} : { values: f.values.map(String) }),
-    }))
+    .map(([key, f]) => {
+      const values = valuesOf(f.type)
+      return {
+        names: flagNames(key, f),
+        description: f.description,
+        takesValue: !isBoolFlag(f.type),
+        repeatable: isList(f.type),
+        ...(values === undefined ? {} : { values: values.map(String) }),
+      }
+    })
 
 /** Positionals with a fixed set of choices, e.g. `completions <bash|zsh|fish>`. */
 const positionalValuesOf = (op: Operation): string[] =>
-  positionalsOf(op).flatMap((key) => (op.inputs?.[key]?.values ?? []).map(String))
+  positionalsOf(op).flatMap((key) => {
+    const f = op.inputs?.[key]
+    return f === undefined ? [] : (valuesOf(f.type) ?? []).map(String)
+  })
 
 /** Same spellings the help column lists: shorts, the key, then long aliases. */
 const flagNames = (key: string, f: InputField): string[] => {
@@ -352,7 +357,7 @@ const completionsOp = cli(
     name: 'completions',
     description: 'Print a shell completion script.',
     inputs: {
-      shell: field({ description: 'Shell to generate for.', type: string, values: [...SHELLS] }),
+      shell: field({ description: 'Shell to generate for.', type: choice(SHELLS) }),
     },
     outputs: field({ description: 'The completion script.', type: string }),
   },
@@ -367,10 +372,9 @@ const completionsOp = cli(
  * Most callers want {@link withCompletions} instead.
  */
 export const completionsCmd = (tree: () => Namespace, opts: CompletionOpts = {}): Command =>
-  cmd(completionsOp, (i) => {
-    if (!isShell(i.shell)) throw new CliError(`unknown shell '${i.shell}'`)
-    return completion(tree(), i.shell, opts)
-  })
+  // `i.shell` is `Shell`, not `string`: the choice type reports its members, and
+  // `bind` has already rejected anything outside them.
+  cmd(completionsOp, (i) => completion(tree(), i.shell, opts))
 
 /** Append a `completions` command to a namespace, wired to that same namespace. */
 export const withCompletions = (tree: Namespace, opts: CompletionOpts = {}): Namespace => {

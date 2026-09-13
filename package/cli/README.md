@@ -120,6 +120,7 @@ in order — only the last may be a `list`, which then takes everything left ove
 | `bool`               | `--done`, `--no-done`, `--done=false`, `-d` | `false`      |
 | `list(string)`       | repeat it: `-t home -t errands`             | `[]`         |
 | `optional(string)`   | same as its item                            | unset        |
+| `choice([…])`        | one of the members: `--mode fast`           | required     |
 | any with a `default` | same as its type                            | the default  |
 
 Single-character aliases become short flags and can be grouped (`-dt home`);
@@ -127,16 +128,32 @@ longer ones become additional long flags. `--` ends flag parsing, so everything
 after it is positional. `--help`, `-h`, `--output` and `-o` are reserved — an
 operation that uses those names for its own inputs is rejected.
 
-An input can also name the only values it accepts. The parser rejects anything
-else, help shows the choices in place of the type, and completions offer them:
+## Closed sets
+
+`choice` is a type, not an annotation — so the handler sees the members, not just
+`string`:
 
 ```ts
-mode: field({ description: 'How to apply them.', type: string, values: ['fast', 'safe'] })
+const Mode = choice(['fast', 'safe'])
+
+mode: field({ description: 'How to apply them.', type: Mode })
+// in the handler, `i.mode` is 'fast' | 'safe'
 ```
+
+Because it is a `Primitive` it composes like any other type: `optional(Mode)`
+gives `'fast' | 'safe' | undefined`, and `list(Mode)` gives `('fast' | 'safe')[]`
+with every element checked. Members must be all strings or all numbers, so
+`choice([1, 2, 3])` works and yields `1 | 2 | 3`.
+
+The parser rejects anything else, help shows the members in place of the type,
+completions offer them, and JSON Schema emits them as `enum`:
 
 ```console
 $ todo add 'buy milk' --mode sloppy
 error: invalid value for 'mode': 'sloppy' (expected 'fast' or 'safe')
+
+$ todo add 'buy milk' --level 9
+error: invalid value for 'level': 9 (expected 1, 2 or 3)
 ```
 
 ## Positionals are command-line configuration

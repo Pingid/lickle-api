@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { InputError, bind, oneOf } from './bind.ts'
-import { bool, field, list, num, optional, string } from './cons.ts'
+import { choice, bool, field, list, num, optional, string } from './cons.ts'
 import { isList } from './kind.ts'
 import type { Policy } from './bind.ts'
 
@@ -52,13 +52,13 @@ test('a declared default wins over a fallback', () => {
 })
 
 test('values are checked after coercion, per element for a list', () => {
-  const mode = { mode: field({ description: 'How.', type: string, values: ['fast', 'safe'] }) }
+  const mode = { mode: field({ description: 'How.', type: choice(['fast', 'safe']) }) }
   expect(bind(mode, { mode: 'fast' }, asGiven)).toEqual({ mode: 'fast' })
   expect(() => bind(mode, { mode: 'sloppy' }, asGiven)).toThrow(
     "invalid value for 'mode': 'sloppy' (expected 'fast' or 'safe')",
   )
 
-  const tags = { tag: field({ description: 'Tags.', type: list(string), values: ['a', 'b'] }) }
+  const tags = { tag: field({ description: 'Tags.', type: list(choice(['a', 'b'])) }) }
   expect(() => bind(tags, { tag: ['a', 'z'] }, asGiven)).toThrow("invalid value for 'tag[1]': 'z'")
 })
 

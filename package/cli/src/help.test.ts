@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { cmdHelp, namespaceHelp } from './help.ts'
-import { bool, cmd, field, list, num, optional, string, type Operation, type Namespace } from './cmd.ts'
+import { choice, bool, cmd, field, list, num, optional, string, type Operation, type Namespace } from './cmd.ts'
 
 const migrate: Operation = {
   name: 'migrate',
@@ -59,7 +59,7 @@ test('a field with values renders its choices as the placeholder', () => {
     name: 'migrate',
     description: 'Migrate.',
     inputs: {
-      mode: field({ description: 'How to apply them.', type: string, values: ['fast', 'safe'], alias: ['m'] }),
+      mode: field({ description: 'How to apply them.', type: choice(['fast', 'safe']), alias: ['m'] }),
     },
   }
   expect(cmdHelp(spec, ['app'])).toContain('-m, --mode <fast|safe>    How to apply them. (required)')

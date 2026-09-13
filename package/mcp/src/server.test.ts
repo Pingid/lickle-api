@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { bool, cmd, ns, field, list, num, optional, string } from '@lickle/cmd-core'
+import { choice, bool, cmd, ns, field, list, num, optional, string } from '@lickle/cmd-core'
 import type { Namespace } from '@lickle/cmd-core'
 import { server } from './server.ts'
 import {
@@ -16,7 +16,7 @@ const migrate = cmd(
     description: 'Apply pending migrations.',
     inputs: {
       target: field({ description: 'Migration to stop at.', type: string }),
-      mode: field({ description: 'How to apply them.', type: string, values: ['fast', 'safe'], default: 'safe' }),
+      mode: field({ description: 'How to apply them.', type: choice(['fast', 'safe']), default: 'safe' }),
       tags: field({ description: 'Tags.', type: list(string) }),
       note: field({ description: 'A note.', type: optional(string) }),
       dry: field({ description: 'Do not write.', type: bool }),

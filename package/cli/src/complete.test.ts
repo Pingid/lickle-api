@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { expect, test } from 'vitest'
 import { SHELLS, completion, isShell, withCompletions } from './complete.ts'
-import { bool, cmd, field, list, string, type Namespace } from './cmd.ts'
+import { choice, bool, cmd, field, list, string, type Namespace } from './cmd.ts'
 
 const migrate = cmd(
   {
@@ -10,7 +10,7 @@ const migrate = cmd(
     inputs: {
       target: field({ description: 'Migration to stop at.', type: string }),
       tag: field({ description: "Only migrations you've tagged.", type: list(string), alias: ['t'] }),
-      mode: field({ description: 'How to apply them.', type: string, values: ['fast', 'safe'], alias: ['m'] }),
+      mode: field({ description: 'How to apply them.', type: choice(['fast', 'safe']), alias: ['m'] }),
       dry: field({ description: 'Do not write anything.', type: bool, alias: ['d'] }),
     },
     meta: { cli: { positionals: ['target'] } },

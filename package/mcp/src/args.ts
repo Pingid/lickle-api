@@ -34,7 +34,14 @@ const POLICY: Policy = {
 }
 
 const checkPrimitive = (label: string, kind: Primitive, given: unknown): unknown => {
-  const want = foldPrimitive(kind, { num: () => 'number', bool: () => 'boolean', string: () => 'string' })
+  const want = foldPrimitive(kind, {
+    num: () => 'number',
+    bool: () => 'boolean',
+    string: () => 'string',
+    // Membership is `bind`'s to enforce; this only checks the JS type the
+    // members are drawn from, so a wrong-typed argument still reads well.
+    choice: (values) => (typeof values[0] === 'number' ? 'number' : 'string'),
+  })
 
   if (typeof given !== want) throw new InputError(`'${label}' expects a ${want}, got ${typeName(given)}`)
   if (want === 'number' && !Number.isFinite(given)) throw new InputError(`'${label}' expects a finite number`)

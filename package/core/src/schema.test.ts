@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { bool, field, list, num, optional, string } from './cons.ts'
+import { choice, bool, field, list, num, optional, string } from './cons.ts'
 import { fieldSchema, jsonSchema } from './schema.ts'
 
 test('primitives map to JSON Schema types, with the description carried over', () => {
@@ -33,12 +33,12 @@ test('list becomes an array with typed items', () => {
 })
 
 test('values becomes enum, on the item for a list', () => {
-  expect(fieldSchema(field({ description: 'Mode.', type: string, values: ['fast', 'safe'] }))).toEqual({
+  expect(fieldSchema(field({ description: 'Mode.', type: choice(['fast', 'safe']) }))).toEqual({
     type: 'string',
     enum: ['fast', 'safe'],
     description: 'Mode.',
   })
-  expect(fieldSchema(field({ description: 'Modes.', type: list(string), values: ['fast', 'safe'] }))).toEqual({
+  expect(fieldSchema(field({ description: 'Modes.', type: list(choice(['fast', 'safe'])) }))).toEqual({
     type: 'array',
     items: { type: 'string', enum: ['fast', 'safe'] },
     description: 'Modes.',

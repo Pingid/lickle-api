@@ -1,14 +1,39 @@
 import { KIND } from './types.ts'
-import type { InputField, List, Optional, OutputField, OutputFields, Primitive, Type } from './types.ts'
+import type {
+  Choice,
+  Choices,
+  InputField,
+  List,
+  Optional,
+  OutputField,
+  OutputFields,
+  Primitive,
+  Type,
+} from './types.ts'
 
 export const isOptional = (t: Type): t is Optional<Primitive> => t.kind === KIND.optional
 
 export const isList = (t: Type): t is List<Primitive> => t.kind === KIND.list
 
+export const isChoice = (t: Type): t is Choice => t.kind === KIND.choice
+
 /** The underlying primitive of a type, unwrapping `optional` and `list`. */
 export const itemOf = (t: Type): Primitive => (isOptional(t) || isList(t) ? t.item : t)
 
 export const hasDefault = (f: InputField): boolean => f.default !== undefined
+
+/**
+ * The closed set a type admits, unwrapping `optional` and `list` — so a
+ * `list(choice([…]))` reports the members its items are drawn from.
+ *
+ * This is the single accessor every target uses to find out that something has
+ * a fixed set of values: the CLI to complete and label it, JSON Schema to emit
+ * `enum`, `bind` to reject anything else.
+ */
+export const valuesOf = (t: Type): Choices | undefined => {
+  const item = itemOf(t)
+  return isChoice(item) ? item.values : undefined
+}
 
 /*
  * There is deliberately no shared `isRequired` here. Whether an input must be
@@ -28,6 +53,7 @@ export interface Fold<R> {
   bool: () => R
   string: () => R
   num: () => R
+  choice: (values: Choices) => R
   optional: (item: Primitive) => R
   list: (item: Primitive) => R
 }
@@ -40,6 +66,8 @@ export const fold = <R>(t: Type, on: Fold<R>): R => {
       return on.string()
     case KIND.num:
       return on.num()
+    case KIND.choice:
+      return on.choice(t.values)
     case KIND.optional:
       return on.optional(t.item)
     case KIND.list:
@@ -47,7 +75,7 @@ export const fold = <R>(t: Type, on: Fold<R>): R => {
   }
 }
 
-export type PrimitiveFold<R> = Pick<Fold<R>, 'bool' | 'string' | 'num'>
+export type PrimitiveFold<R> = Pick<Fold<R>, 'bool' | 'string' | 'num' | 'choice'>
 
 export const foldPrimitive = <R>(p: Primitive, on: PrimitiveFold<R>): R => {
   switch (p.kind) {
@@ -57,6 +85,8 @@ export const foldPrimitive = <R>(p: Primitive, on: PrimitiveFold<R>): R => {
       return on.string()
     case KIND.num:
       return on.num()
+    case KIND.choice:
+      return on.choice(p.values)
   }
 }
 

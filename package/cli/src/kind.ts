@@ -14,12 +14,13 @@ export const isBoolFlag = (t: Type): boolean => !isList(t) && itemOf(t).kind ===
 export const isRequired = (f: InputField): boolean =>
   !hasDefault(f) && !isOptional(f.type) && !isList(f.type) && !isBoolFlag(f.type)
 
-/** Human-readable type for help output: `num`, `string[]`, `string?`. */
+/** Human-readable type for help output: `num`, `string[]`, `string?`, `fast|safe`. */
 export const typeLabel = (t: Type): string =>
   fold(t, {
     bool: () => KIND.bool,
     string: () => KIND.string,
     num: () => KIND.num,
-    optional: (i) => `${i.kind}?`,
-    list: (i) => `${i.kind}[]`,
+    choice: (values) => values.join('|'),
+    optional: (item) => `${typeLabel(item)}?`,
+    list: (item) => `${typeLabel(item)}[]`,
   })

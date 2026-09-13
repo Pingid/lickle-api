@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { bool, field, list, num, optional, op as makeOp, string } from '@lickle/cmd-core'
+import { choice, bool, field, list, num, optional, op as makeOp, string } from '@lickle/cmd-core'
 import { InputError } from '@lickle/cmd-core'
 import { bindArgs } from './args.ts'
 
@@ -11,7 +11,7 @@ const spec = makeOp({
     count: field({ description: 'How many.', type: num }),
     flag: field({ description: 'A flag.', type: bool }),
     tags: field({ description: 'Tags.', type: list(string) }),
-    mode: field({ description: 'Mode.', type: string, values: ['fast', 'safe'], default: 'safe' }),
+    mode: field({ description: 'Mode.', type: choice(['fast', 'safe']), default: 'safe' }),
     note: field({ description: 'A note.', type: optional(string) }),
   },
 })

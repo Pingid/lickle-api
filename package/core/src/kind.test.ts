@@ -1,16 +1,19 @@
 import { expect, test } from 'vitest'
-import { bool, field, list, num, optional, string } from './cons.ts'
+import { choice, bool, field, list, num, optional, string } from './cons.ts'
 import {
   fold,
+  isChoice,
   foldPrimitive,
   hasDefault,
   isList,
   isOptional,
   isOutputField,
   itemOf,
+  valuesOf,
   outputField,
   outputFields,
 } from './kind.ts'
+import type { TypeOf } from './types.ts'
 
 test('isOptional and isList discriminate the wrappers', () => {
   expect(isOptional(optional(string))).toBe(true)
@@ -33,9 +36,18 @@ test('hasDefault distinguishes a declared default from none', () => {
   expect(hasDefault(field({ description: 'x', type: num, default: 0 }))).toBe(true)
 })
 
-test('values rides on any field', () => {
-  expect(field({ description: 'x', type: string, values: ['a', 'b'] }).values).toEqual(['a', 'b'])
-  expect(field({ description: 'x', type: num, values: [1, 2] }).values).toEqual([1, 2])
+test('valuesOf reports a choice, through optional and list', () => {
+  expect(valuesOf(choice(['a', 'b']))).toEqual(['a', 'b'])
+  expect(valuesOf(choice([1, 2]))).toEqual([1, 2])
+  expect(valuesOf(optional(choice(['a', 'b'])))).toEqual(['a', 'b'])
+  expect(valuesOf(list(choice(['a', 'b'])))).toEqual(['a', 'b'])
+  expect(valuesOf(string)).toBeUndefined()
+  expect(valuesOf(list(string))).toBeUndefined()
+})
+
+test('isChoice discriminates', () => {
+  expect(isChoice(choice(['a']))).toBe(true)
+  expect(isChoice(string)).toBe(false)
 })
 
 test('fold covers every kind and hands wrappers their item', () => {
@@ -44,6 +56,7 @@ test('fold covers every kind and hands wrappers their item', () => {
       bool: () => 'bool',
       string: () => 'string',
       num: () => 'num',
+      choice: (values) => values.join('|'),
       optional: (i) => `${label(i)}?`,
       list: (i) => `${label(i)}[]`,
     })
@@ -53,11 +66,21 @@ test('fold covers every kind and hands wrappers their item', () => {
   expect(label(num)).toBe('num')
   expect(label(optional(string))).toBe('string?')
   expect(label(list(num))).toBe('num[]')
+  expect(label(choice(['fast', 'safe']))).toBe('fast|safe')
+  expect(label(list(choice(['a', 'b'])))).toBe('a|b[]')
 })
 
 test('foldPrimitive covers the three primitives', () => {
-  const json = foldPrimitive(num, { bool: () => 'boolean', string: () => 'string', num: () => 'number' })
-  expect(json).toBe('number')
+  const json = <P extends Parameters<typeof foldPrimitive>[0]>(p: P) =>
+    foldPrimitive(p, {
+      bool: () => 'boolean',
+      string: () => 'string',
+      num: () => 'number',
+      choice: (values) => (typeof values[0] === 'number' ? 'number' : 'string'),
+    })
+  expect(json(num)).toBe('number')
+  expect(json(choice(['a', 'b']))).toBe('string')
+  expect(json(choice([1, 2]))).toBe('number')
 })
 
 test('outputs narrow to a map or a single field', () => {
@@ -80,4 +103,21 @@ test('a field map holding keys named `type` or `description` is still a map', ()
   }
   expect(isOutputField(shadowed)).toBe(false)
   expect(outputFields(shadowed)).toBe(shadowed)
+})
+
+// The point of `choice` being a type rather than a field annotation: `TypeOf`
+// can report the members, so a handler receives the union. A `values` property
+// on the field was invisible to the type system and left this as `string`.
+test('a choice narrows the value it describes, through optional and list', () => {
+  const Mode = choice(['fast', 'safe'])
+
+  const check = <T>(_v: T) => true
+  expect(check<TypeOf<typeof Mode>>('fast')).toBe(true)
+  expect(check<TypeOf<ReturnType<typeof optional<typeof Mode>>>>(undefined)).toBe(true)
+  expect(check<TypeOf<ReturnType<typeof list<typeof Mode>>>>(['fast', 'safe'])).toBe(true)
+
+  // @ts-expect-error 'sloppy' is not a member
+  expect(check<TypeOf<typeof Mode>>('sloppy')).toBe(true)
+  // @ts-expect-error members must be all strings or all numbers
+  expect(choice(['a', 1])).toBeDefined()
 })

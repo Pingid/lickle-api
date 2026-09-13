@@ -1,5 +1,5 @@
-import { hasDefault, isOptional } from './kind.ts'
-import type { InputField, InputFields } from './types.ts'
+import { hasDefault, isOptional, valuesOf } from './kind.ts'
+import type { Choices, InputField, InputFields } from './types.ts'
 
 /**
  * A caller-facing rejection: what was supplied does not match the operation.
@@ -47,7 +47,7 @@ export const bind = (fields: InputFields, given: Record<string, unknown>, policy
   for (const [key, field] of Object.entries(fields)) {
     const raw = given[key]
     if (raw !== undefined && raw !== null) {
-      out[key] = checkValues(key, field, policy.coerce(field, raw, key))
+      out[key] = checkChoice(key, field, policy.coerce(field, raw, key))
       continue
     }
     if (hasDefault(field)) {
@@ -66,8 +66,14 @@ export const bind = (fields: InputFields, given: Record<string, unknown>, policy
   return out
 }
 
-const checkValues = (key: string, field: InputField, value: unknown): unknown => {
-  const values = field.values
+/**
+ * Reject anything outside a `choice`, per element for a list.
+ *
+ * One implementation and one message for every target: the command line and a
+ * tool call word this identically because neither writes it.
+ */
+const checkChoice = (key: string, field: InputField, value: unknown): unknown => {
+  const values: Choices | undefined = valuesOf(field.type)
   if (values === undefined) return value
 
   const check = (v: unknown, label: string): void => {

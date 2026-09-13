@@ -1,5 +1,16 @@
 import { KIND } from './types.ts'
-import type { Builder, Command, Handler, InputField, Namespace, Operation, Primitive, Struct, Type } from './types.ts'
+import type {
+  Builder,
+  Choices,
+  Command,
+  Handler,
+  InputField,
+  Namespace,
+  Operation,
+  Primitive,
+  Struct,
+  Type,
+} from './types.ts'
 
 // ---------------- Constructors --------------------------
 export const op = <const O extends Operation>(o: O) => o
@@ -8,6 +19,16 @@ export const type = <const T extends Type>(t: T) => t
 export const num = type({ kind: KIND.num })
 export const string = type({ kind: KIND.string })
 export const bool = type({ kind: KIND.bool })
+/**
+ * A closed set of values. Members must be all strings or all numbers, so every
+ * projection can name the JS type alongside the set.
+ *
+ * ```ts
+ * const Mode = choice(['fast', 'safe'])   // handlers receive 'fast' | 'safe'
+ * ```
+ */
+export const choice = <const V extends Choices>(values: V) => type({ kind: KIND.choice, values })
+
 export const optional = <T extends Primitive>(item: T) => type({ kind: KIND.optional, item })
 export const list = <T extends Primitive>(item: T) => type({ kind: KIND.list, item })
 

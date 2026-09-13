@@ -182,14 +182,19 @@ const text = (value: unknown): string => (value === true ? 'true' : String(value
 
 const coerce = (item: Primitive, raw: string, key: string): unknown =>
   foldPrimitive<unknown>(item, {
-    num: () => {
-      const n = Number(raw)
-      if (raw.trim() === '' || Number.isNaN(n)) throw new CliError(`'${key}' expects a number, got '${raw}'`)
-      return n
-    },
+    num: () => parseNum(raw, key),
     bool: () => parseBool(raw, key),
     string: () => raw,
+    // Membership is `bind`'s to enforce; all this has to get right is the JS
+    // type the members are drawn from.
+    choice: (values) => (typeof values[0] === 'number' ? parseNum(raw, key) : raw),
   })
+
+const parseNum = (raw: string, key: string): number => {
+  const n = Number(raw)
+  if (raw.trim() === '' || Number.isNaN(n)) throw new CliError(`'${key}' expects a number, got '${raw}'`)
+  return n
+}
 
 const parseBool = (raw: string, display: string): boolean => {
   const v = raw.toLowerCase()
