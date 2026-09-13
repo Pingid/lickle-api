@@ -195,7 +195,7 @@ test('colliding tool names are suffixed and reported', async () => {
 
 test('a hidden command is not offered as a tool but still runs', async () => {
   // `mcp` is hidden: a model should not be able to ask for another server.
-  const { mcpCmd } = await import('./cmd.ts')
+  const { mcpCmd } = await import('./serve.ts')
   const tree: Namespace = ns({
     name: 'app',
     description: 'x',

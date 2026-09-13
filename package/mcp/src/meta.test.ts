@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import { InputError, cmd, field, ns, op, string } from '@lickle/cmd-core'
-import { run } from '@lickle/cmd-cli'
+import { server } from './server.ts'
+import { JSONRPC_VERSION } from './types.ts'
 import { hideFromTools, isHiddenFromTools, mcpMeta } from './meta.ts'
 import { tools } from './tools.ts'
 
@@ -14,14 +15,12 @@ test('hidden is plain data under the mcp key', () => {
   expect(mcpMeta(visible)).toEqual({})
 })
 
-test('hidden commands are left out of the tool list but stay in the tree', async () => {
+test('hidden commands are left out of the tool list but stay in the tree', () => {
   const tree = ns({ name: 'app', description: 'Demo.', cmds: [visible, secret] })
 
   expect(tools(tree, { onWarn: () => {} }).map((e) => e.tool.name)).toEqual(['visible'])
-
-  let out = ''
-  const code = await run(tree, ['secret'], { stdout: (s) => (out += s), stderr: () => {} })
-  expect(code).toBe(0)
+  // Still a normal command for whatever else runs the tree.
+  expect(tree.cmds.map((c) => c.name)).toEqual(['visible', 'secret'])
 })
 
 // Hiding used to key on the operation object's identity in a module-level
@@ -57,15 +56,20 @@ test('an operation returning a single value declares no outputSchema', () => {
 })
 
 // A command that throws core's portable InputError is a caller error on every
-// target: exit 2 on the command line, `isError: true` here.
-test('InputError from a command is a caller error on both targets', async () => {
+// target: `isError: true` here, exit 2 on the command line.
+test('InputError from a command comes back as a tool result, not a protocol error', async () => {
   const picky = cmd({ name: 'picky', description: 'Rejects the caller.' }, () => {
     throw new InputError('that will not do')
   })
-  const tree = ns({ name: 'app', description: 'Demo.', cmds: [picky] })
+  const dispatch = server(ns({ name: 'app', description: 'Demo.', cmds: [picky] }), { onWarn: () => {} })
 
-  let err = ''
-  const code = await run(tree, ['picky'], { stdout: () => {}, stderr: (s) => (err += s) })
-  expect(code).toBe(2)
-  expect(err).toContain('that will not do')
+  const res = await dispatch({
+    jsonrpc: JSONRPC_VERSION,
+    id: 1,
+    method: 'tools/call',
+    params: { name: 'picky', arguments: {} },
+  })
+
+  expect(res).toMatchObject({ result: { isError: true, content: [{ text: 'that will not do' }] } })
+  expect(res).not.toHaveProperty('error')
 })

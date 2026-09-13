@@ -1,7 +1,6 @@
 import { expect, test } from 'vitest'
 import { parseArgs, peekFormat } from './parse.ts'
-import { oneOf } from '@lickle/cmd-core'
-import { bool, build, field, list, num, optional, string, type Operation } from './index.ts'
+import { bool, build, field, list, num, oneOf, optional, string, type Operation } from './cmd.ts'
 
 const mk = (inputs: Record<string, unknown>, positionals?: string[]): Operation => ({
   name: 'test',

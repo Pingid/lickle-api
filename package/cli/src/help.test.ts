@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { cmdHelp, namespaceHelp } from './help.ts'
-import { bool, cmd, field, list, num, optional, string, type Operation, type Namespace } from './index.ts'
+import { bool, cmd, field, list, num, optional, string, type Operation, type Namespace } from './cmd.ts'
 
 const migrate: Operation = {
   name: 'migrate',

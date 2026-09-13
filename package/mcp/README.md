@@ -4,7 +4,7 @@ Serve a `@lickle/cmd-core` command tree as an [MCP](https://modelcontextprotocol
 
 A tool is a named operation with a description and a typed input schema — which is what a
 command already is, with `run` as the handler. So nothing is declared twice: the same
-operation that produces a CLI produces the tools a model calls.
+operation a CLI or a GitHub Action renders produces the tools a model calls.
 
 Implements protocol revision **2026-07-28** directly, with **no dependencies**.
 
@@ -12,46 +12,48 @@ Implements protocol revision **2026-07-28** directly, with **no dependencies**.
 pnpm add @lickle/cmd-mcp
 ```
 
-## One program, two surfaces
+`@lickle/cmd-mcp/cmd` re-exports `@lickle/cmd-core`, so this one package is enough to write a
+server. Depend on `@lickle/cmd-core` directly when a package defines operations without
+serving them.
 
-`mcpCmd` adds an `mcp` command wired to the tree it sits in, so a CLI serves itself:
+## A server
+
+Two import sites: the root is what this package _does_, and `/cmd` is how you describe the
+operations it serves.
 
 ```ts
 // todo.ts
-import { cli, cmd, field, list, num, run, string, type Namespace } from '@lickle/cmd-cli'
-import { mcpCmd } from '@lickle/cmd-mcp'
+import { server, serveStdio } from '@lickle/cmd-mcp'
+import { cmd, field, list, ns, num, string } from '@lickle/cmd-mcp/cmd'
 
 const add = cmd(
-  cli(
-    {
-      name: 'add',
-      description: 'Add a task to the list.',
-      inputs: {
-        title: field({ description: 'What to do.', type: string }),
-        tag: field({ description: 'Tags to file it under.', type: list(string) }),
-        priority: field({ description: 'How urgent.', type: string, values: ['low', 'high'], default: 'low' }),
-      },
-      outputs: {
-        id: field({ description: 'The new task id.', type: num }),
-        title: field({ description: 'What it says.', type: string }),
-      },
+  {
+    name: 'add',
+    description: 'Add a task to the list.',
+    inputs: {
+      title: field({ description: 'What to do.', type: string }),
+      tag: field({ description: 'Tags to file it under.', type: list(string) }),
+      priority: field({ description: 'How urgent.', type: string, values: ['low', 'high'], default: 'low' }),
     },
-    { positionals: ['title'] },
-  ),
+    outputs: {
+      id: field({ description: 'The new task id.', type: num }),
+      title: field({ description: 'What it says.', type: string }),
+    },
+  },
   (i) => ({ id: 1, title: `${i.title} [${i.priority}]` }),
 )
 
-const cmds: Namespace = {
+const cmds = ns({
   name: 'todo',
   description: 'A tiny task list.',
-  cmds: [{ name: 'task', description: 'Task commands.', cmds: [add] }, mcpCmd((): Namespace => cmds)],
-}
+  cmds: [{ name: 'task', description: 'Task commands.', cmds: [add] }],
+})
 
-process.exit(await run(cmds, process.argv.slice(2)))
+await serveStdio(server(cmds))
 ```
 
-`todo task add 'buy milk'` still works. `todo mcp` serves the same tree over stdio — point an
-MCP client at `node todo.js mcp`.
+`i` is typed from the operation — `i.title` is a `string`, `i.priority` a `string` — and so is
+the object you return.
 
 Each field's `description` becomes the schema `description`, which is exactly the prose a
 model needs and the part hand-written tool schemas usually skip:
@@ -82,13 +84,13 @@ An operation whose `outputs` is a single unnamed field returns a document rather
 of fields. `structuredContent` is an object, so such a tool declares no `outputSchema` and
 its result comes back as text.
 
-## Without the CLI
+## Transports
 
-The server is a plain function from one decoded message to one response, so it needs no
+`server` is a plain function from one decoded message to one response, so it needs no
 transport to be useful — or to be tested:
 
 ```ts
-import { server, serveStdio, httpHandler } from '@lickle/cmd-mcp'
+import { httpHandler, server, serveStdio } from '@lickle/cmd-mcp'
 
 const dispatch = server(cmds)
 
@@ -98,6 +100,24 @@ export default { fetch: httpHandler(dispatch) } // a POST endpoint, web-standard
 
 `serveStdio` resolves when its input ends. `httpHandler` is built on `Request`/`Response`, so
 it runs on Node, Deno, Bun and workers with no framework.
+
+## Serving a tree from inside itself
+
+`mcpCmd` returns an ordinary command that serves the tree it sits in, for a tree that is also
+rendered some other way — so one program can be both. It takes the tree as a thunk, since the
+command lives inside the tree it serves:
+
+```ts
+const cmds = ns({
+  name: 'todo',
+  description: 'A tiny task list.',
+  cmds: [add, mcpCmd((): Namespace => cmds)],
+})
+```
+
+It declares no outputs and returns nothing, which is what keeps stdout free for the protocol,
+and it resolves only when its input ends — so whatever awaits it stays alive for exactly as
+long as a client is attached.
 
 ## What it implements
 

@@ -6,6 +6,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cmd": {
+      "types": "./dist/cmd.d.ts",
+      "import": "./dist/cmd.js"
     }
   },
   "scripts": {
@@ -19,7 +23,6 @@
     "@lickle/cmd-core": "workspace:*"
   },
   "devDependencies": {
-    "@lickle/cmd-cli": "workspace:*",
     "@types/node": "^22.20.2",
     "vitest": "^4.1.11"
   }

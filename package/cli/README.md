@@ -10,11 +10,19 @@ and the printed result from it. Nothing is declared twice.
 pnpm add @lickle/cmd-cli
 ```
 
+`@lickle/cmd-cli/cmd` re-exports `@lickle/cmd-core`, so this one package is
+enough to write a CLI. Depend on `@lickle/cmd-core` directly when a package
+defines operations without running them.
+
 ## A whole CLI
+
+Two import sites: the root is what this package _does_, and `/cmd` is how you
+describe the operations it runs.
 
 ```ts
 // todo.ts
-import { bool, cli, cmd, field, list, num, run, string, type Namespace } from '@lickle/cmd-cli'
+import { cli, run } from '@lickle/cmd-cli'
+import { bool, cmd, field, list, num, string, type Namespace } from '@lickle/cmd-cli/cmd'
 
 const add = cmd(
   cli(
@@ -240,7 +248,7 @@ throws core's `InputError`. That is portable: exit `2` here, `isError: true` ove
 MCP, `400` over HTTP.
 
 ```ts
-import { InputError } from '@lickle/cmd-cli'
+import { InputError } from '@lickle/cmd-cli/cmd'
 
 throw new InputError('that task is already done')
 ```

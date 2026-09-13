@@ -1,5 +1,11 @@
 {
   "extends": "../tsconfig.json",
-  "references": [{ "path": "../core" }, { "path": "../cli" }],
-  "compilerOptions": { "types": ["node"] }
+  "references": [
+    {
+      "path": "../core"
+    }
+  ],
+  "compilerOptions": {
+    "types": ["node"]
+  }
 }

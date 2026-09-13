@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { isFormat, render, renderError } from './output.ts'
-import { field, list, num, string, type OutputFields } from './index.ts'
+import { field, list, num, string, type OutputFields } from './cmd.ts'
 
 const outputs = {
   id: field({ description: 'id', type: string }),

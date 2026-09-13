@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { expect, test } from 'vitest'
 import { SHELLS, completion, isShell, withCompletions } from './complete.ts'
-import { bool, cmd, field, list, string, type Namespace } from './index.ts'
+import { bool, cmd, field, list, string, type Namespace } from './cmd.ts'
 
 const migrate = cmd(
   {

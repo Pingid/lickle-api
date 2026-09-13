@@ -6,6 +6,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cmd": {
+      "types": "./dist/cmd.d.ts",
+      "import": "./dist/cmd.js"
     }
   },
   "scripts": {

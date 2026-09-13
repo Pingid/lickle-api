@@ -56,9 +56,6 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@lickle/cmd-cli':
-        specifier: workspace:*
-        version: link:../cli
       '@types/node':
         specifier: ^22.20.2
         version: 22.20.2

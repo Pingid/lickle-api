@@ -3,7 +3,8 @@ import * as prettier from 'prettier'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 
-import { cli, cmd, completionsCmd, field, ns, run, string, type Namespace } from '../package/cli/src/index.ts'
+import { cli, completionsCmd, run } from '../package/cli/src/index.ts'
+import { cmd, field, ns, string, type Namespace } from '../package/cli/src/cmd.ts'
 
 const root = path.resolve(import.meta.dirname, '..')
 

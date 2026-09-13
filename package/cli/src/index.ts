@@ -8,7 +8,5 @@ export * from './parse.ts'
 export * from './runner.ts'
 export * from './tokenise.ts'
 
-// Re-exported so `@lickle/cmd-cli` stays a single import site. There is nothing
-// to augment here any more: CLI configuration rides on `meta.cli`, so core's
-// types are the same types every other target sees.
-export * from '@lickle/cmd-core'
+// `./cmd.ts` is deliberately not re-exported here: it is published at
+// `@lickle/cmd-cli/cmd`, so the two halves stay separable at the import site.

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { EXIT, run } from './runner.ts'
-import { cmd, field, list, num, string, type Namespace } from './index.ts'
+import { InputError, cmd, field, list, num, string, type Namespace } from './cmd.ts'
 
 const greet = cmd(
   {
@@ -126,4 +126,20 @@ test('the program name comes from opts, then the root group', async () => {
   let bare = ''
   await run({ name: 'cli', cmds: [boom] }, ['--help'], { stdout: (s) => (bare += s), stderr: () => {} })
   expect(bare).toContain('Usage: cli <command> [options]')
+})
+
+// A command that throws core's portable InputError is reporting a caller
+// mistake, not its own failure — exit 2 here, `isError: true` over MCP.
+test('InputError from a command is a usage error, not a crash', async () => {
+  const picky = cmd({ name: 'picky', description: 'Rejects the caller.' }, () => {
+    throw new InputError('that task is already done')
+  })
+  const tree: Namespace = { name: 'app', description: 'Demo.', cmds: [picky] }
+
+  let err = ''
+  const code = await run(tree, ['picky'], { stdout: () => {}, stderr: (s) => (err += s) })
+
+  expect(code).toBe(EXIT.usage)
+  expect(err).toContain('error: that task is already done')
+  expect(err).toContain("Try 'app picky --help' for more information.")
 })
