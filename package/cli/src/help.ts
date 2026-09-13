@@ -1,6 +1,7 @@
-import type { InputField, Spec } from '@lickle/cmd-core'
+import { isList, itemOf, outputField, outputFields } from '@lickle/cmd-core'
+import type { InputField, Namespace, Operation } from '@lickle/cmd-core'
 import { isBoolFlag, isRequired, typeLabel } from './kind.ts'
-import { children, isList, itemOf, type SubCmds } from './spec.ts'
+import { positionalsOf } from './meta.ts'
 
 type Row = [left: string, right: string]
 
@@ -9,13 +10,13 @@ const GLOBAL_OPTIONS: Row[] = [
   ['-o, --output <text|json>', 'Output format. (default: text)'],
 ]
 
-/** Help for a command group: the commands it holds, plus the global options. */
-export const groupHelp = (group: SubCmds, path: string[]): string => {
+/** Help for a namespace: the commands it holds, plus the global options. */
+export const namespaceHelp = (ns: Namespace, path: string[]): string => {
   const sections: string[] = []
-  if (group.description) sections.push(group.description)
+  if (ns.description) sections.push(ns.description)
   sections.push(`Usage: ${path.join(' ')} <command> [options]`)
 
-  const commands = children(group).map(({ name, description }): Row => [name, description])
+  const commands = ns.cmds.map(({ name, description }): Row => [name, description ?? ''])
   if (commands.length > 0) sections.push(section('Commands', commands))
   sections.push(section('Options', GLOBAL_OPTIONS))
 
@@ -23,12 +24,12 @@ export const groupHelp = (group: SubCmds, path: string[]): string => {
 }
 
 /** Help for a single command: its arguments, options and outputs. */
-export const cmdHelp = (spec: Spec, path: string[]): string => {
-  const inputs = spec.inputs ?? {}
-  const positionals = spec.positionals ?? []
+export const cmdHelp = (op: Operation, path: string[]): string => {
+  const inputs = op.inputs ?? {}
+  const positionals = positionalsOf(op)
 
   const sections: string[] = []
-  if (spec.description) sections.push(spec.description)
+  if (op.description) sections.push(op.description)
 
   const usage = [`Usage: ${path.join(' ')}`, '[options]', ...positionals.map((k) => token(k, inputs[k]))]
   sections.push(usage.join(' '))
@@ -37,21 +38,28 @@ export const cmdHelp = (spec: Spec, path: string[]): string => {
   for (const key of positionals) {
     const field = inputs[key]
     if (field === undefined) continue
-    args.push([token(key, field), annotate(field.d, valueLabel(field), defaultNote(field))])
+    args.push([token(key, field), annotate(field.description, valueLabel(field), defaultNote(field))])
   }
   if (args.length > 0) sections.push(section('Arguments', args))
 
   const options: Row[] = []
   for (const [key, field] of Object.entries(inputs)) {
     if (positionals.includes(key)) continue
-    options.push([flags(key, field), annotate(field.d, defaultNote(field) ?? (isRequired(field) ? 'required' : ''))])
+    options.push([
+      flags(key, field),
+      annotate(field.description, defaultNote(field) ?? (isRequired(field) ? 'required' : '')),
+    ])
   }
   sections.push(section('Options', [...options, ...GLOBAL_OPTIONS]))
 
-  const outputs = Object.entries(spec.outputs ?? {}).map(([key, field]): Row => [
-    key,
-    annotate(field.d, typeLabel(field.kind)),
-  ])
+  const single = outputField(op.outputs)
+  const outputs: Row[] =
+    single !== undefined
+      ? [[typeLabel(single.type), single.description]]
+      : Object.entries(outputFields(op.outputs) ?? {}).map(([key, field]): Row => [
+          key,
+          annotate(field.description, typeLabel(field.type)),
+        ])
   if (outputs.length > 0) sections.push(section('Output', outputs))
 
   return sections.join('\n\n')
@@ -60,7 +68,7 @@ export const cmdHelp = (spec: Spec, path: string[]): string => {
 /** Usage token for a positional: `<name>`, `[name]` or `[name...]`. */
 const token = (key: string, field: InputField | undefined): string => {
   if (field === undefined) return `<${key}>`
-  if (isList(field.kind)) return `[${key}...]`
+  if (isList(field.type)) return `[${key}...]`
   return isRequired(field) ? `<${key}>` : `[${key}]`
 }
 
@@ -73,13 +81,13 @@ const flags = (key: string, field: InputField): string => {
   const shorts = aliases.filter((a) => a.length === 1).map((a) => `-${a}`)
   const names = [...shorts, `--${key}`, ...aliases.filter((a) => a.length > 1).map((a) => `--${a}`)]
   const column = shorts.length > 0 ? names.join(', ') : `    ${names.join(', ')}`
-  if (isBoolFlag(field.kind)) return column
-  const label = field.values ? field.values.join('|') : itemOf(field.kind).type
-  return `${column} <${label}${isList(field.kind) ? '...' : ''}>`
+  if (isBoolFlag(field.type)) return column
+  const label = field.values ? field.values.join('|') : itemOf(field.type).kind
+  return `${column} <${label}${isList(field.type) ? '...' : ''}>`
 }
 
 /** What a field accepts: its declared choices, else its type. */
-const valueLabel = (field: InputField): string => (field.values ? field.values.join('|') : typeLabel(field.kind))
+const valueLabel = (field: InputField): string => (field.values ? field.values.join('|') : typeLabel(field.type))
 
 const defaultNote = (field: InputField): string | undefined =>
   field.default === undefined ? undefined : `default: ${JSON.stringify(field.default)}`

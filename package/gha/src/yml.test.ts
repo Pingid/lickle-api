@@ -7,13 +7,13 @@ const spec = {
   name: 'greet',
   description: 'Greet someone.',
   inputs: {
-    who: field({ d: 'Who to greet.', kind: string }),
-    greeting: field({ d: 'What to say.', kind: string, default: 'hello' }),
-    title: field({ d: 'Optional title.', kind: optional(string) }),
-    tags: field({ d: 'Tags.', kind: list(string) }),
+    who: field({ description: 'Who to greet.', type: string }),
+    greeting: field({ description: 'What to say.', type: string, default: 'hello' }),
+    title: field({ description: 'Optional title.', type: optional(string) }),
+    tags: field({ description: 'Tags.', type: list(string) }),
   },
   outputs: {
-    message: field({ d: 'The greeting.', kind: string }),
+    message: field({ description: 'The greeting.', type: string }),
   },
 }
 

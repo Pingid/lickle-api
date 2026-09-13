@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
-import { bool, cmd, commands, field, list, num, optional, string } from '@lickle/cmd-core'
-import type { SubCmds } from '@lickle/cmd-core'
+import { bool, cmd, ns, field, list, num, optional, string } from '@lickle/cmd-core'
+import type { Namespace } from '@lickle/cmd-core'
 import { server } from './server.ts'
 import {
   INVALID_REQUEST,
@@ -15,13 +15,13 @@ const migrate = cmd(
     name: 'migrate',
     description: 'Apply pending migrations.',
     inputs: {
-      target: field({ d: 'Migration to stop at.', kind: string }),
-      mode: field({ d: 'How to apply them.', kind: string, values: ['fast', 'safe'], default: 'safe' }),
-      tags: field({ d: 'Tags.', kind: list(string) }),
-      note: field({ d: 'A note.', kind: optional(string) }),
-      dry: field({ d: 'Do not write.', kind: bool }),
+      target: field({ description: 'Migration to stop at.', type: string }),
+      mode: field({ description: 'How to apply them.', type: string, values: ['fast', 'safe'], default: 'safe' }),
+      tags: field({ description: 'Tags.', type: list(string) }),
+      note: field({ description: 'A note.', type: optional(string) }),
+      dry: field({ description: 'Do not write.', type: bool }),
     },
-    outputs: { applied: field({ d: 'How many ran.', kind: num }) },
+    outputs: { applied: field({ description: 'How many ran.', type: num }) },
   },
   (i: { target: string; mode: string; tags: string[]; dry: boolean }) => ({ applied: i.tags.length + 1 }),
 )
@@ -31,10 +31,10 @@ const boom = cmd({ name: 'boom', description: 'Always fails.' }, () => {
   throw new Error('the database is on fire')
 })
 
-const cmds: SubCmds = commands({
+const cmds: Namespace = ns({
   name: 'app',
   description: 'Demo CLI.',
-  cmds: [{ name: 'db', description: 'Database commands.', cmds: [migrate, seed] }, { cmds: [boom] }],
+  cmds: [{ name: 'db', description: 'Database ns.', cmds: [migrate, seed] }, boom],
 })
 
 const dispatch = server(cmds, { onWarn: () => {} })
@@ -131,7 +131,7 @@ test('bad arguments are a tool result too, naming what was wrong', async () => {
     name: 'db_migrate',
     arguments: { target: 'v3', tags: [], dry: false, mode: 'sloppy' },
   })
-  expect(badChoice.content[0].text).toMatch(/'mode' expects one of 'fast', 'safe'/)
+  expect(badChoice.content[0].text).toMatch(/invalid value for 'mode': 'sloppy' \(expected 'fast' or 'safe'\)/)
 
   const unknownArg = await ok('tools/call', {
     name: 'db_migrate',
@@ -178,7 +178,7 @@ test('a request declaring the supported revision passes through', async () => {
 test('colliding tool names are suffixed and reported', async () => {
   const warnings: string[] = []
   const clash = server(
-    commands({
+    ns({
       name: 'app',
       description: 'x',
       cmds: [
@@ -196,10 +196,10 @@ test('colliding tool names are suffixed and reported', async () => {
 test('a hidden command is not offered as a tool but still runs', async () => {
   // `mcp` is hidden: a model should not be able to ask for another server.
   const { mcpCmd } = await import('./cmd.ts')
-  const tree: SubCmds = commands({
+  const tree: Namespace = ns({
     name: 'app',
     description: 'x',
-    cmds: [seed, mcpCmd((): SubCmds => tree)],
+    cmds: [seed, mcpCmd((): Namespace => tree)],
   })
   const res: any = await server(tree, { onWarn: () => {} })({ jsonrpc: JSONRPC_VERSION, id: 1, method: 'tools/list' })
   expect(res.result.tools.map((t: any) => t.name)).toEqual(['seed'])

@@ -1,6 +1,7 @@
 export * from './args.ts'
 export * from './cmd.ts'
 export * from './http.ts'
+export * from './meta.ts'
 export * from './name.ts'
 export * from './result.ts'
 export * from './server.ts'

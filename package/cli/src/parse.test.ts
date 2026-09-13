@@ -1,28 +1,29 @@
 import { expect, test } from 'vitest'
-import { oneOf, parseArgs, peekFormat } from './parse.ts'
-import { bool, build, field, list, num, optional, string, type Spec } from './spec.ts'
+import { parseArgs, peekFormat } from './parse.ts'
+import { oneOf } from '@lickle/cmd-core'
+import { bool, build, field, list, num, optional, string, type Operation } from './index.ts'
 
-const mk = (inputs: Record<string, unknown>, positionals?: string[]): Spec => ({
+const mk = (inputs: Record<string, unknown>, positionals?: string[]): Operation => ({
   name: 'test',
   description: 'a test command',
-  inputs: inputs as Spec['inputs'],
-  ...(positionals === undefined ? {} : { positionals }),
+  inputs: inputs as Operation['inputs'],
+  ...(positionals === undefined ? {} : { meta: { cli: { positionals } } }),
 })
 
 test('long flags take a value by space or by =', () => {
-  const spec = mk({ name: field({ d: 'name', kind: string }) })
+  const spec = mk({ name: field({ description: 'name', type: string }) })
   expect(parseArgs(spec, ['--name', 'ada']).inputs).toEqual({ name: 'ada' })
   expect(parseArgs(spec, ['--name=ada']).inputs).toEqual({ name: 'ada' })
 })
 
 test('nums are coerced and rejected when not numeric', () => {
-  const spec = mk({ count: field({ d: 'count', kind: num }) })
+  const spec = mk({ count: field({ description: 'count', type: num }) })
   expect(parseArgs(spec, ['--count', '42']).inputs).toEqual({ count: 42 })
   expect(() => parseArgs(spec, ['--count', 'lots'])).toThrow(/expects a number/)
 })
 
 test('bools take no value and can be negated', () => {
-  const spec = mk({ force: field({ d: 'force', kind: bool }) })
+  const spec = mk({ force: field({ description: 'force', type: bool }) })
   expect(parseArgs(spec, []).inputs).toEqual({ force: false })
   expect(parseArgs(spec, ['--force']).inputs).toEqual({ force: true })
   expect(parseArgs(spec, ['--force=false']).inputs).toEqual({ force: false })
@@ -31,9 +32,9 @@ test('bools take no value and can be negated', () => {
 
 test('aliases resolve, and short bool flags group', () => {
   const spec = mk({
-    force: field({ d: 'force', kind: bool, alias: ['f'] }),
-    verbose: field({ d: 'verbose', kind: bool, alias: ['v'] }),
-    count: field({ d: 'count', kind: num, alias: ['n', 'total'] }),
+    force: field({ description: 'force', type: bool, alias: ['f'] }),
+    verbose: field({ description: 'verbose', type: bool, alias: ['v'] }),
+    count: field({ description: 'count', type: num, alias: ['n', 'total'] }),
   })
   expect(parseArgs(spec, ['-fv', '-n', '3']).inputs).toEqual({ force: true, verbose: true, count: 3 })
   expect(parseArgs(spec, ['-fn5']).inputs).toEqual({ force: true, verbose: false, count: 5 })
@@ -42,15 +43,15 @@ test('aliases resolve, and short bool flags group', () => {
 })
 
 test('lists repeat and default to empty', () => {
-  const spec = mk({ tag: field({ d: 'tag', kind: list(string), alias: ['t'] }) })
+  const spec = mk({ tag: field({ description: 'tag', type: list(string), alias: ['t'] }) })
   expect(parseArgs(spec, []).inputs).toEqual({ tag: [] })
   expect(parseArgs(spec, ['--tag', 'a', '-t', 'b', '--tag=c']).inputs).toEqual({ tag: ['a', 'b', 'c'] })
 })
 
 test('optional inputs are left unset, defaults are applied', () => {
   const spec = mk({
-    note: field({ d: 'note', kind: optional(string) }),
-    count: field({ d: 'count', kind: num, default: 10 }),
+    note: field({ description: 'note', type: optional(string) }),
+    count: field({ description: 'count', type: num, default: 10 }),
   })
   const { inputs } = parseArgs(spec, [])
   expect(inputs).toEqual({ count: 10 })
@@ -60,8 +61,8 @@ test('optional inputs are left unset, defaults are applied', () => {
 test('positionals bind in order, with a variadic list last', () => {
   const spec = mk(
     {
-      name: field({ d: 'name', kind: string }),
-      rest: field({ d: 'rest', kind: list(string) }),
+      name: field({ description: 'name', type: string }),
+      rest: field({ description: 'rest', type: list(string) }),
     },
     ['name', 'rest'],
   )
@@ -70,24 +71,24 @@ test('positionals bind in order, with a variadic list last', () => {
 })
 
 test('-- ends flag parsing', () => {
-  const spec = mk({ name: field({ d: 'name', kind: string }) }, ['name'])
+  const spec = mk({ name: field({ description: 'name', type: string }) }, ['name'])
   expect(parseArgs(spec, ['--', '--not-a-flag']).inputs).toEqual({ name: '--not-a-flag' })
 })
 
 test('usage mistakes are reported', () => {
-  const spec = mk({ name: field({ d: 'name', kind: string }) }, ['name'])
+  const spec = mk({ name: field({ description: 'name', type: string }) }, ['name'])
   expect(() => parseArgs(spec, ['--bogus'])).toThrow(/unknown option '--bogus'/)
   expect(() => parseArgs(spec, ['--name'])).toThrow(/requires a value/)
   expect(() => parseArgs(spec, [])).toThrow(/missing required argument '<name>'/)
   expect(() => parseArgs(spec, ['a', 'b'])).toThrow(/unexpected argument 'b'/)
   expect(() => parseArgs(spec, ['--name', 'a', 'b'])).toThrow(/both as an option and as an argument/)
-  expect(() => parseArgs(mk({ name: field({ d: 'name', kind: string }) }), [])).toThrow(
+  expect(() => parseArgs(mk({ name: field({ description: 'name', type: string }) }), [])).toThrow(
     /missing required option '--name'/,
   )
 })
 
 test('--help skips validation of required inputs', () => {
-  const spec = mk({ name: field({ d: 'name', kind: string }) })
+  const spec = mk({ name: field({ description: 'name', type: string }) })
   expect(parseArgs(spec, ['--help']).help).toBe(true)
   expect(parseArgs(spec, ['-h']).help).toBe(true)
 })
@@ -103,19 +104,19 @@ test('--output selects the format and rejects anything else', () => {
 })
 
 test('a field with values accepts only those, as flag or positional', () => {
-  const spec = mk({ mode: field({ d: 'mode', kind: string, values: ['fast', 'safe'] }) })
+  const spec = mk({ mode: field({ description: 'mode', type: string, values: ['fast', 'safe'] }) })
   expect(parseArgs(spec, ['--mode', 'fast']).inputs).toEqual({ mode: 'fast' })
   expect(() => parseArgs(spec, ['--mode', 'sloppy'])).toThrow(
     /invalid value for 'mode': 'sloppy' \(expected 'fast' or 'safe'\)/,
   )
 
-  const positional = mk({ mode: field({ d: 'mode', kind: string, values: ['fast', 'safe'] }) }, ['mode'])
+  const positional = mk({ mode: field({ description: 'mode', type: string, values: ['fast', 'safe'] }) }, ['mode'])
   expect(parseArgs(positional, ['safe']).inputs).toEqual({ mode: 'safe' })
   expect(() => parseArgs(positional, ['sloppy'])).toThrow(/invalid value/)
 })
 
 test('values are checked for every item of a list', () => {
-  const spec = mk({ tag: field({ d: 'tag', kind: list(string), values: ['a', 'b'] }) })
+  const spec = mk({ tag: field({ description: 'tag', type: list(string), values: ['a', 'b'] }) })
   expect(parseArgs(spec, ['--tag', 'a', '--tag', 'b']).inputs).toEqual({ tag: ['a', 'b'] })
   expect(() => parseArgs(spec, ['--tag', 'a', '--tag', 'z'])).toThrow(/invalid value/)
 })
@@ -138,8 +139,10 @@ test('peekFormat finds the format without parsing anything else', () => {
 })
 
 test('specs may not shadow the reserved flags', () => {
-  expect(() => parseArgs(mk({ output: field({ d: 'out', kind: string }) }), [])).toThrow(/reserved flag name 'output'/)
-  expect(() => parseArgs(mk({ host: field({ d: 'host', kind: string, alias: ['h'] }) }), [])).toThrow(
+  expect(() => parseArgs(mk({ output: field({ description: 'out', type: string }) }), [])).toThrow(
+    /reserved flag name 'output'/,
+  )
+  expect(() => parseArgs(mk({ host: field({ description: 'host', type: string, alias: ['h'] }) }), [])).toThrow(
     /reserved flag name 'h'/,
   )
 })
@@ -147,9 +150,30 @@ test('specs may not shadow the reserved flags', () => {
 test('a spec built with the builder parses', () => {
   const spec = build('greet')
     .description('Greet someone.')
-    .inputs({ name: field({ d: 'Who to greet.', kind: string }) })
-    .positionals(['name'])
-    .spec()
+    .inputs({ name: field({ description: 'Who to greet.', type: string }) })
+    .meta({ cli: { positionals: ['name'] } })
+    .op()
 
   expect(parseArgs(spec, ['ada']).inputs).toEqual({ name: 'ada' })
+})
+
+// Regression: `peekFormat` used to run its own ad-hoc scanner, so a clustered
+// `-vo json` read as `json` to the parser and `text` to the peek — and an error
+// raised mid-parse was then reported in the wrong format. Both now run the same
+// grammar, so they cannot disagree about what was written.
+test('peekFormat agrees with parseArgs on every spelling', () => {
+  const spec = mk({ verbose: field({ description: 'verbose', type: bool, alias: ['v'] }) })
+
+  for (const argv of [
+    ['-vo', 'json'],
+    ['-o', 'json'],
+    ['--output=json'],
+    ['-ojson'],
+    ['-o=json'],
+    ['--verbose', '--output', 'json'],
+    ['-v'],
+    [],
+  ]) {
+    expect([argv, peekFormat(argv)]).toEqual([argv, parseArgs(spec, argv).output])
+  }
 })

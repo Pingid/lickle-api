@@ -3,8 +3,8 @@
 Serve a `@lickle/cmd-core` command tree as an [MCP](https://modelcontextprotocol.io) server.
 
 A tool is a named operation with a description and a typed input schema — which is what a
-command already is, with `run` as the handler. So nothing is declared twice: the same spec
-that produces a CLI produces the tools a model calls.
+command already is, with `run` as the handler. So nothing is declared twice: the same
+operation that produces a CLI produces the tools a model calls.
 
 Implements protocol revision **2026-07-28** directly, with **no dependencies**.
 
@@ -18,32 +18,33 @@ pnpm add @lickle/cmd-mcp
 
 ```ts
 // todo.ts
-import { run, spec } from '@lickle/cmd-cli'
-import type { SubCmds } from '@lickle/cmd-cli'
+import { cli, cmd, field, list, num, run, string, type Namespace } from '@lickle/cmd-cli'
 import { mcpCmd } from '@lickle/cmd-mcp'
 
-const add = spec.cmd(
-  {
-    name: 'add',
-    description: 'Add a task to the list.',
-    inputs: {
-      title: spec.field({ d: 'What to do.', kind: spec.string }),
-      tag: spec.field({ d: 'Tags to file it under.', kind: spec.list(spec.string) }),
-      priority: spec.field({ d: 'How urgent.', kind: spec.string, values: ['low', 'high'], default: 'low' }),
+const add = cmd(
+  cli(
+    {
+      name: 'add',
+      description: 'Add a task to the list.',
+      inputs: {
+        title: field({ description: 'What to do.', type: string }),
+        tag: field({ description: 'Tags to file it under.', type: list(string) }),
+        priority: field({ description: 'How urgent.', type: string, values: ['low', 'high'], default: 'low' }),
+      },
+      outputs: {
+        id: field({ description: 'The new task id.', type: num }),
+        title: field({ description: 'What it says.', type: string }),
+      },
     },
-    outputs: {
-      id: spec.field({ d: 'The new task id.', kind: spec.num }),
-      title: spec.field({ d: 'What it says.', kind: spec.string }),
-    },
-    positionals: ['title'],
-  },
+    { positionals: ['title'] },
+  ),
   (i) => ({ id: 1, title: `${i.title} [${i.priority}]` }),
 )
 
-const cmds: SubCmds = {
+const cmds: Namespace = {
   name: 'todo',
   description: 'A tiny task list.',
-  cmds: [{ name: 'task', description: 'Task commands.', cmds: [add] }, mcpCmd((): SubCmds => cmds)],
+  cmds: [{ name: 'task', description: 'Task commands.', cmds: [add] }, mcpCmd((): Namespace => cmds)],
 }
 
 process.exit(await run(cmds, process.argv.slice(2)))
@@ -52,8 +53,8 @@ process.exit(await run(cmds, process.argv.slice(2)))
 `todo task add 'buy milk'` still works. `todo mcp` serves the same tree over stdio — point an
 MCP client at `node todo.js mcp`.
 
-Each field's `d` becomes the schema `description`, which is exactly the prose a model needs
-and the part hand-written tool schemas usually skip:
+Each field's `description` becomes the schema `description`, which is exactly the prose a
+model needs and the part hand-written tool schemas usually skip:
 
 ```jsonc
 {
@@ -74,8 +75,12 @@ and the part hand-written tool schemas usually skip:
 ```
 
 Nested commands get a flat name from their path (`task add` → `task_add`), held to
-`^[A-Za-z0-9_-]{1,64}$`. `values` becomes `enum`; `outputs` becomes `outputSchema`, and the
-command's return value comes back as `structuredContent`.
+`^[A-Za-z0-9_-]{1,64}$`. `values` becomes `enum`; a map of `outputs` becomes `outputSchema`,
+and the command's return value comes back as `structuredContent`.
+
+An operation whose `outputs` is a single unnamed field returns a document rather than a set
+of fields. `structuredContent` is an object, so such a tool declares no `outputSchema` and
+its result comes back as text.
 
 ## Without the CLI
 
@@ -106,9 +111,15 @@ to _find_ the tool is a protocol error.
 ```jsonc
 // a command that threw
 { "content": [{ "type": "text", "text": "the database is on fire" }], "isError": true }
-// arguments that did not match the spec
-{ "content": [{ "type": "text", "text": "'priority' expects one of 'low', 'high', got \"urgent\"" }], "isError": true }
+// arguments that did not match the operation
+{ "content": [{ "type": "text", "text": "invalid value for 'priority': 'urgent' (expected 'low' or 'high')" }], "isError": true }
 ```
+
+Arguments arrive already JSON-typed, so nothing is coerced from strings the way the CLI
+parser must — a wrong type is an error, not a hint. Everything past that (defaults, `values`,
+naming a missing input) is core's shared `bind`, so the two targets cannot drift apart on the
+parts that are not policy. A command that throws core's `InputError` is a caller error on
+every target.
 
 ## Two things to know
 
@@ -116,8 +127,15 @@ to _find_ the tool is a protocol error.
 Return values rather than printing; send diagnostics to stderr.
 
 **The `mcp` command is not itself a tool** — a model has no business asking the server it is
-talking to for another server. Use `hideFromTools(spec)` to keep any other command out of the
-tool list while leaving it a normal CLI command.
+talking to for another server. Keep any other command out of the tool list the same way:
+
+```ts
+{ name: 'deploy', description: 'Ship it.', meta: { mcp: { hidden: true } } }
+```
+
+`hideFromTools(op)` writes that key for you. It is plain data on the operation, so it shows up
+in a dump of the tree, survives two copies of this package being loaded, and hides only the
+command that carries it.
 
 ## Protocol revision
 

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
-import { cmd, commands, field, string } from '@lickle/cmd-core'
-import type { SubCmds } from '@lickle/cmd-core'
+import { cmd, field, isNamespace, ns, string } from '@lickle/cmd-core'
+import type { Namespace } from '@lickle/cmd-core'
 import { run } from '@lickle/cmd-cli'
 import { mcpCmd } from './cmd.ts'
 import { JSONRPC_VERSION } from './types.ts'
@@ -9,20 +9,20 @@ const echo = cmd(
   {
     name: 'echo',
     description: 'Echo a word.',
-    inputs: { word: field({ d: 'The word.', kind: string }) },
-    outputs: { word: field({ d: 'The word.', kind: string }) },
+    inputs: { word: field({ description: 'The word.', type: string }) },
+    outputs: { word: field({ description: 'The word.', type: string }) },
   },
   (i: { word: string }) => ({ word: i.word }),
 )
 
 /** A tree that serves itself, exactly as a consumer would wire it. */
 const build = (frames: string[], protocol: string[]) => {
-  const cmds: SubCmds = commands({
+  const cmds: Namespace = ns({
     name: 'app',
     description: 'Demo CLI.',
     cmds: [
       echo,
-      mcpCmd((): SubCmds => cmds, {
+      mcpCmd((): Namespace => cmds, {
         onWarn: () => {},
         io: {
           input: (async function* () {
@@ -73,10 +73,10 @@ test('it resolves only once the input ends, not as soon as serving starts', asyn
     yield frame(2, 'tools/list')
   })()
 
-  const cmds: SubCmds = commands({
+  const cmds: Namespace = ns({
     name: 'app',
     description: 'Demo.',
-    cmds: [echo, mcpCmd((): SubCmds => cmds, { onWarn: () => {}, io: { input, write: (s) => protocol.push(s) } })],
+    cmds: [echo, mcpCmd((): Namespace => cmds, { onWarn: () => {}, io: { input, write: (s) => protocol.push(s) } })],
   })
 
   const code = await run(cmds, ['mcp'], { stdout: () => {}, stderr: () => {} })
@@ -87,9 +87,9 @@ test('it resolves only once the input ends, not as soon as serving starts', asyn
 })
 
 test('the mcp command declares no outputs, which is what keeps stdout clean', async () => {
-  const cmds: SubCmds = commands({ name: 'app', description: 'Demo.', cmds: [mcpCmd((): SubCmds => cmds)] })
-  const entry = cmds.cmds[0] as { spec: { outputs?: unknown } }
-  expect(entry.spec.outputs).toBeUndefined()
+  const cmds: Namespace = ns({ name: 'app', description: 'Demo.', cmds: [mcpCmd((): Namespace => cmds)] })
+  const entry = cmds.cmds[0]!
+  expect(isNamespace(entry) ? undefined : entry.outputs).toBeUndefined()
 })
 
 test('`app --help` lists mcp alongside the rest', async () => {

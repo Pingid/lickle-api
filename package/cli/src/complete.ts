@@ -1,8 +1,11 @@
-import type { InputField, Spec } from '@lickle/cmd-core'
-import { cmd, type Cmd } from '@lickle/cmd-core'
+import { cmd, field, isNamespace, string, walk } from '@lickle/cmd-core'
+import type { Command, Namespace, Operation } from '@lickle/cmd-core'
+import { CliError } from './errors.ts'
 import { isBoolFlag } from './kind.ts'
+import { cli, positionalsOf } from './meta.ts'
 import { FORMATS } from './output.ts'
-import { children, field, isList, isSubCmds, string, walk, type SubCmds } from './spec.ts'
+import { isList } from '@lickle/cmd-core'
+import type { InputField } from '@lickle/cmd-core'
 
 export const SHELLS = ['bash', 'zsh', 'fish'] as const
 
@@ -11,11 +14,11 @@ export type Shell = (typeof SHELLS)[number]
 export const isShell = (v: string): v is Shell => (SHELLS as readonly string[]).includes(v)
 
 export interface CompletionOpts {
-  /** Program name the script registers against. Defaults to the root group's name. */
+  /** Program name the script registers against. Defaults to the root namespace's name. */
   name?: string
 }
 
-/** One command or group, flattened out of the tree for the emitters. */
+/** One command or namespace, flattened out of the tree for the emitters. */
 interface Node {
   /** Segments reaching this node, program name excluded. Empty for the root. */
   path: string[]
@@ -54,13 +57,13 @@ const GLOBAL_OPTIONS: Option[] = [
  * The whole tree is baked into the script, so completion costs nothing at the
  * prompt — but the script has to be regenerated whenever the CLI changes.
  */
-export const completion = (cmds: SubCmds, shell: Shell, opts: CompletionOpts = {}): string => {
-  const name = opts.name ?? cmds.name ?? 'cli'
-  const nodes = flatten(cmds)
+export const completion = (tree: Namespace, shell: Shell, opts: CompletionOpts = {}): string => {
+  const name = opts.name ?? tree.name
+  const nodes = flatten(tree)
   return shell === 'bash' ? bash(name, nodes) : shell === 'zsh' ? zsh(name, nodes) : fish(name, nodes)
 }
 
-const flatten = (root: SubCmds): Node[] => [
+const flatten = (root: Namespace): Node[] => [
   {
     path: [],
     description: root.description ?? '',
@@ -68,32 +71,33 @@ const flatten = (root: SubCmds): Node[] => [
     options: GLOBAL_OPTIONS,
     positionalValues: [],
   },
-  ...walk(root).map(({ path, description, node }) => ({
+  ...walk(root).map(({ path, node }) => ({
     path,
-    description,
-    subcommands: isSubCmds(node) ? subcommandsOf(node) : [],
-    options: isSubCmds(node) ? GLOBAL_OPTIONS : [...optionsOf(node.spec), ...GLOBAL_OPTIONS],
-    positionalValues: isSubCmds(node) ? [] : positionalValuesOf(node.spec),
+    description: node.description ?? '',
+    subcommands: isNamespace(node) ? subcommandsOf(node) : [],
+    options: isNamespace(node) ? GLOBAL_OPTIONS : [...optionsOf(node), ...GLOBAL_OPTIONS],
+    positionalValues: isNamespace(node) ? [] : positionalValuesOf(node),
   })),
 ]
 
-const subcommandsOf = (group: SubCmds) => children(group).map(({ name, description }) => ({ name, description }))
+const subcommandsOf = (ns: Namespace) =>
+  ns.cmds.map(({ name, description }) => ({ name, description: description ?? '' }))
 
 /** Inputs become flags, minus the ones bound as positionals. */
-const optionsOf = (spec: Spec): Option[] =>
-  Object.entries(spec.inputs ?? {})
-    .filter(([key]) => !(spec.positionals ?? []).includes(key))
+const optionsOf = (op: Operation): Option[] =>
+  Object.entries(op.inputs ?? {})
+    .filter(([key]) => !positionalsOf(op).includes(key))
     .map(([key, f]) => ({
       names: flagNames(key, f),
-      description: f.d,
-      takesValue: !isBoolFlag(f.kind),
-      repeatable: isList(f.kind),
-      ...(f.values === undefined ? {} : { values: f.values }),
+      description: f.description,
+      takesValue: !isBoolFlag(f.type),
+      repeatable: isList(f.type),
+      ...(f.values === undefined ? {} : { values: f.values.map(String) }),
     }))
 
 /** Positionals with a fixed set of choices, e.g. `completions <bash|zsh|fish>`. */
-const positionalValuesOf = (spec: Spec): string[] =>
-  (spec.positionals ?? []).flatMap((key) => spec.inputs?.[key]?.values ?? [])
+const positionalValuesOf = (op: Operation): string[] =>
+  positionalsOf(op).flatMap((key) => (op.inputs?.[key]?.values ?? []).map(String))
 
 /** Same spellings the help column lists: shorts, the key, then long aliases. */
 const flagNames = (key: string, f: InputField): string[] => {
@@ -170,7 +174,7 @@ const bash = (name: string, nodes: Node[]): string => {
   ])
 
   return `# ${name} completions for bash.
-# Generated from the command spec — regenerate when the CLI changes.
+# Generated from the command tree — regenerate when the CLI changes.
 # Install: ${name} completions bash > /etc/bash_completion.d/${name}
 
 ${fn}() {
@@ -281,7 +285,7 @@ ${n.subcommands
 
   return `#compdef ${name}
 # ${name} completions for zsh.
-# Generated from the command spec — regenerate when the CLI changes.
+# Generated from the command tree — regenerate when the CLI changes.
 # Install: ${name} completions zsh > "\${fpath[1]}/_${name}"
 
 ${nodes.map(nodeFn).join('\n\n')}
@@ -332,7 +336,7 @@ const fish = (name: string, nodes: Node[]): string => {
   })
 
   return `# ${name} completions for fish.
-# Generated from the command spec — regenerate when the CLI changes.
+# Generated from the command tree — regenerate when the CLI changes.
 # Install: ${name} completions fish > ~/.config/fish/completions/${name}.fish
 
 ${lines.join('\n')}
@@ -341,14 +345,19 @@ ${lines.join('\n')}
 
 // ---------------- The command --------------------------
 
-const completionsSpec: Spec = {
-  name: 'completions',
-  description: 'Print a shell completion script.',
-  inputs: {
-    shell: field({ d: 'Shell to generate for.', kind: string, values: [...SHELLS] }),
+// A single unnamed output: the result is a script, not a set of named fields,
+// so the CLI prints it verbatim rather than as `key: value` lines.
+const completionsOp = cli(
+  {
+    name: 'completions',
+    description: 'Print a shell completion script.',
+    inputs: {
+      shell: field({ description: 'Shell to generate for.', type: string, values: [...SHELLS] }),
+    },
+    outputs: field({ description: 'The completion script.', type: string }),
   },
-  positionals: ['shell'],
-}
+  { positionals: ['shell'] },
+)
 
 /**
  * A `completions <shell>` command for a tree.
@@ -357,16 +366,14 @@ const completionsSpec: Spec = {
  * describes; it is read when the command runs, by which point the tree exists.
  * Most callers want {@link withCompletions} instead.
  */
-export const completionsCmd = (tree: () => SubCmds, opts: CompletionOpts = {}): Cmd =>
-  // A spec with no `outputs` types its run as returning void, but `render`
-  // prints a non-object return verbatim — which is what a script needs.
-  cmd(completionsSpec, ((i: { shell: string }) => {
-    if (!isShell(i.shell)) throw new Error(`unknown shell '${i.shell}'`)
+export const completionsCmd = (tree: () => Namespace, opts: CompletionOpts = {}): Command =>
+  cmd(completionsOp, (i) => {
+    if (!isShell(i.shell)) throw new CliError(`unknown shell '${i.shell}'`)
     return completion(tree(), i.shell, opts)
-  }) as never)
+  })
 
-/** Append a `completions` command to a group, wired to that same group. */
-export const withCompletions = (cmds: SubCmds, opts: CompletionOpts = {}): SubCmds => {
-  const out: SubCmds = { ...cmds, cmds: [...cmds.cmds, completionsCmd(() => out, opts)] }
+/** Append a `completions` command to a namespace, wired to that same namespace. */
+export const withCompletions = (tree: Namespace, opts: CompletionOpts = {}): Namespace => {
+  const out: Namespace = { ...tree, cmds: [...tree.cmds, completionsCmd(() => out, opts)] }
   return out
 }

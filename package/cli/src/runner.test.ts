@@ -1,20 +1,20 @@
 import { expect, test } from 'vitest'
 import { EXIT, run } from './runner.ts'
-import { cmd, field, list, num, string, type SubCmds } from './spec.ts'
+import { cmd, field, list, num, string, type Namespace } from './index.ts'
 
 const greet = cmd(
   {
     name: 'greet',
     description: 'Greet someone.',
     inputs: {
-      name: field({ d: 'Who to greet.', kind: string }),
-      times: field({ d: 'How often.', kind: num, alias: ['n'], default: 1 }),
+      name: field({ description: 'Who to greet.', type: string }),
+      times: field({ description: 'How often.', type: num, alias: ['n'], default: 1 }),
     },
     outputs: {
-      message: field({ d: 'The greeting.', kind: string }),
-      lines: field({ d: 'Each line.', kind: list(string) }),
+      message: field({ description: 'The greeting.', type: string }),
+      lines: field({ description: 'Each line.', type: list(string) }),
     },
-    positionals: ['name'],
+    meta: { cli: { positionals: ['name'] } },
   },
   (i: { name: string; times: number }) => ({
     message: `hello ${i.name}`,
@@ -28,10 +28,10 @@ const boom = cmd({ name: 'boom', description: 'Always fails.' }, () => {
   throw new Error('the database is on fire')
 })
 
-const cmds: SubCmds = {
+const cmds: Namespace = {
   name: 'app',
   description: 'Demo CLI.',
-  cmds: [{ name: 'say', description: 'Speech commands.', cmds: [greet] }, { cmds: [later, boom] }],
+  cmds: [{ name: 'say', description: 'Speech commands.', cmds: [greet] }, later, boom],
 }
 
 const invoke = async (argv: string[]) => {
@@ -124,6 +124,6 @@ test('the program name comes from opts, then the root group', async () => {
   expect(out).toContain('Usage: other <command> [options]')
 
   let bare = ''
-  await run({ cmds: [boom] }, ['--help'], { stdout: (s) => (bare += s), stderr: () => {} })
+  await run({ name: 'cli', cmds: [boom] }, ['--help'], { stdout: (s) => (bare += s), stderr: () => {} })
   expect(bare).toContain('Usage: cli <command> [options]')
 })

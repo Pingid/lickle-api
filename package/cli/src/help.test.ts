@@ -1,19 +1,19 @@
 import { expect, test } from 'vitest'
-import { cmdHelp, groupHelp } from './help.ts'
-import { bool, cmd, field, list, num, optional, string, type Spec, type SubCmds } from './spec.ts'
+import { cmdHelp, namespaceHelp } from './help.ts'
+import { bool, cmd, field, list, num, optional, string, type Operation, type Namespace } from './index.ts'
 
-const migrate: Spec = {
+const migrate: Operation = {
   name: 'migrate',
   description: 'Apply pending migrations.',
   inputs: {
-    target: field({ d: 'Migration to stop at.', kind: string }),
-    tag: field({ d: 'Only these tags.', kind: list(string), alias: ['t'] }),
-    note: field({ d: 'Note to record.', kind: optional(string) }),
-    steps: field({ d: 'How many to apply.', kind: num, alias: ['n'], default: 1 }),
-    dry: field({ d: 'Do not write anything.', kind: bool, alias: ['d'] }),
+    target: field({ description: 'Migration to stop at.', type: string }),
+    tag: field({ description: 'Only these tags.', type: list(string), alias: ['t'] }),
+    note: field({ description: 'Note to record.', type: optional(string) }),
+    steps: field({ description: 'How many to apply.', type: num, alias: ['n'], default: 1 }),
+    dry: field({ description: 'Do not write anything.', type: bool, alias: ['d'] }),
   },
-  outputs: { applied: field({ d: 'How many ran.', kind: num }) },
-  positionals: ['target'],
+  outputs: { applied: field({ description: 'How many ran.', type: num }) },
+  meta: { cli: { positionals: ['target'] } },
 }
 
 test('command help lists usage, arguments, options and outputs', () => {
@@ -41,31 +41,35 @@ test('command help lists usage, arguments, options and outputs', () => {
 })
 
 test('optional and variadic positionals use the right usage tokens', () => {
-  const spec: Spec = {
+  const spec: Operation = {
     name: 'copy',
     description: 'Copy things.',
     inputs: {
-      src: field({ d: 'Source.', kind: string }),
-      dest: field({ d: 'Destination.', kind: optional(string) }),
-      extra: field({ d: 'Extra.', kind: list(string) }),
+      src: field({ description: 'Source.', type: string }),
+      dest: field({ description: 'Destination.', type: optional(string) }),
+      extra: field({ description: 'Extra.', type: list(string) }),
     },
-    positionals: ['src', 'dest', 'extra'],
+    meta: { cli: { positionals: ['src', 'dest', 'extra'] } },
   }
   expect(cmdHelp(spec, ['app', 'copy'])).toContain('Usage: app copy [options] <src> [dest] [extra...]')
 })
 
 test('a field with values renders its choices as the placeholder', () => {
-  const spec: Spec = {
+  const spec: Operation = {
     name: 'migrate',
     description: 'Migrate.',
-    inputs: { mode: field({ d: 'How to apply them.', kind: string, values: ['fast', 'safe'], alias: ['m'] }) },
+    inputs: {
+      mode: field({ description: 'How to apply them.', type: string, values: ['fast', 'safe'], alias: ['m'] }),
+    },
   }
   expect(cmdHelp(spec, ['app'])).toContain('-m, --mode <fast|safe>    How to apply them. (required)')
-  expect(cmdHelp({ ...spec, positionals: ['mode'] }, ['app'])).toContain('<mode>  How to apply them. (fast|safe)')
+  expect(cmdHelp({ ...spec, meta: { cli: { positionals: ['mode'] } } }, ['app'])).toContain(
+    '<mode>  How to apply them. (fast|safe)',
+  )
 })
 
 test('required options are marked', () => {
-  expect(cmdHelp({ ...migrate, positionals: [] }, ['app'])).toContain(
+  expect(cmdHelp({ ...migrate, meta: { cli: { positionals: [] } } }, ['app'])).toContain(
     '      --target <string>     Migration to stop at. (required)',
   )
 })
@@ -73,13 +77,13 @@ test('required options are marked', () => {
 test('group help lists commands and flattens unnamed groups', () => {
   const seed = cmd({ name: 'seed', description: 'Seed the database.' }, () => {})
   const status = cmd({ name: 'status', description: 'Show status.' }, () => {})
-  const group: SubCmds = {
+  const group: Namespace = {
     name: 'app',
     description: 'Demo CLI.',
-    cmds: [{ name: 'db', description: 'Database commands.', cmds: [seed] }, { cmds: [status] }],
+    cmds: [{ name: 'db', description: 'Database commands.', cmds: [seed] }, status],
   }
 
-  expect(groupHelp(group, ['app'])).toBe(
+  expect(namespaceHelp(group, ['app'])).toBe(
     [
       'Demo CLI.',
       '',

@@ -1,10 +1,14 @@
 import { KIND } from './types.ts'
 import { hasDefault, isList, isOptional, itemOf } from './kind.ts'
-import type { Field, FieldsSpec, InputField, Primitive, Type } from './types.ts'
+import type { Field, FieldMap, InputField, Primitive } from './types.ts'
 
 /**
- * A JSON Schema 2020-12 object schema, as every consumer of the spec wants it:
- * MCP's `Tool.inputSchema`, an OpenAPI parameter set, a generated form.
+ * A JSON Schema 2020-12 object schema, as every consumer of an operation wants
+ * it: MCP's `Tool.inputSchema`, an OpenAPI parameter set, a generated form.
+ *
+ * This lives in core because JSON Schema belongs to nobody — it is a projection
+ * onto a standard, not one target's policy. The test is whether core would
+ * still want it with every adapter deleted, and it would.
  */
 export interface ObjectSchema {
   type: 'object'
@@ -18,7 +22,7 @@ export interface ObjectSchema {
 export interface ValueSchema {
   type?: 'string' | 'number' | 'boolean' | 'array'
   description?: string
-  enum?: string[]
+  enum?: unknown[]
   items?: ValueSchema
   default?: unknown
   [key: string]: unknown
@@ -28,18 +32,17 @@ const JSON_TYPE = {
   [KIND.string]: 'string',
   [KIND.num]: 'number',
   [KIND.bool]: 'boolean',
-} as const satisfies Record<Primitive['type'], ValueSchema['type']>
+} as const satisfies Record<Primitive['kind'], ValueSchema['type']>
 
 /** The schema for one field's value, unwrapping `optional` and `list`. */
 export const fieldSchema = (field: Field): ValueSchema => {
-  const kind: Type = field.kind
-  const values = (field as InputField).values
+  const type = field.type
 
-  const item: ValueSchema = { type: JSON_TYPE[itemOf(kind).type] }
-  if (values !== undefined) item.enum = [...values]
+  const item: ValueSchema = { type: JSON_TYPE[itemOf(type).kind] }
+  if (field.values !== undefined) item.enum = [...field.values]
 
-  const schema: ValueSchema = isList(kind) ? { type: 'array', items: item } : item
-  if (field.d !== '') schema.description = field.d
+  const schema: ValueSchema = isList(type) ? { type: 'array', items: item } : item
+  if (field.description !== '') schema.description = field.description
   return schema
 }
 
@@ -47,20 +50,20 @@ export const fieldSchema = (field: Field): ValueSchema => {
  * An object schema for a set of fields.
  *
  * A field is required unless it is `optional` or carries a `default` — nothing
- * else will supply a value. Note this is *not* the CLI's rule, which also
- * exempts `bool` and `list` because its parser substitutes `false` and `[]`;
- * that substitution is a command-line convention, not part of the spec.
+ * else will supply a value. Note this is *not* the command line's rule, which
+ * also exempts `bool` and `list` because its parser substitutes `false` and
+ * `[]`; that substitution is a command-line convention, not part of the
+ * operation.
  */
-export const jsonSchema = (fields: FieldsSpec | undefined): ObjectSchema => {
-  const entries = Object.entries(fields ?? {})
-
+export const jsonSchema = (fields: FieldMap | undefined): ObjectSchema => {
   const properties: Record<string, ValueSchema> = {}
   const required: string[] = []
-  for (const [key, field] of entries) {
+
+  for (const [key, field] of Object.entries(fields ?? {})) {
     const schema = fieldSchema(field)
     const value = field as InputField
     if (hasDefault(value)) schema.default = value.default
-    else if (!isOptional(field.kind)) required.push(key)
+    else if (!isOptional(field.type)) required.push(key)
     properties[key] = schema
   }
 

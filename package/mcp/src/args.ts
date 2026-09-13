@@ -1,61 +1,43 @@
-import { KIND, hasDefault, isList, isOptional, itemOf } from '@lickle/cmd-core'
-import type { InputField, InputsSpec, Primitive, Spec } from '@lickle/cmd-core'
+import { InputError, bind, foldPrimitive, isList, itemOf } from '@lickle/cmd-core'
+import type { InputFields, Operation, Policy, Primitive } from '@lickle/cmd-core'
 
 /**
- * A caller-facing rejection: the arguments did not match the spec.
+ * Check an incoming `arguments` object against an operation's inputs and fill in
+ * defaults.
  *
- * This travels back as a tool result with `isError: true`, not a protocol
- * error, so the model can read what was wrong and correct itself.
+ * Values arrive already JSON-typed, so nothing is coerced from strings the way
+ * the CLI parser must — a wrong type is an error, not a hint. Everything past
+ * that (defaults, `values`, naming a missing input) is core's `bind`, so the two
+ * targets cannot drift apart on the parts that are not policy.
  */
-export class ArgsError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'ArgsError'
-  }
-}
-
-/**
- * Check an incoming `arguments` object against a spec's inputs and fill in
- * defaults. Values arrive already JSON-typed, so nothing is coerced from
- * strings the way the CLI parser must — a wrong type is an error, not a hint.
- */
-export const parseArgs = (spec: Spec, args: Record<string, unknown> = {}): Record<string, unknown> => {
-  const inputs: InputsSpec = spec.inputs ?? {}
+export const bindArgs = (op: Operation, args: Record<string, unknown> = {}): Record<string, unknown> => {
+  const inputs: InputFields = op.inputs ?? {}
 
   const unknown = Object.keys(args).filter((key) => !(key in inputs))
   if (unknown.length > 0)
-    throw new ArgsError(`unknown ${plural('argument', unknown.length)} ${list(unknown)}; expected ${expected(inputs)}`)
+    throw new InputError(`unknown ${plural('argument', unknown.length)} ${list(unknown)}; expected ${expected(inputs)}`)
 
-  const result: Record<string, unknown> = {}
-  for (const [key, field] of Object.entries(inputs)) {
-    const given = args[key]
-    if (given === undefined || given === null) {
-      if (hasDefault(field)) result[key] = field.default
-      else if (!isOptional(field.kind)) throw new ArgsError(`missing required argument '${key}'`)
-      continue
+  return bind(inputs, args, POLICY)
+}
+
+/** No fallbacks: an absent bool or list is absent, not `false` or `[]`. */
+const POLICY: Policy = {
+  coerce: (field, given, key) => {
+    const type = field.type
+    if (isList(type)) {
+      if (!Array.isArray(given)) throw new InputError(`'${key}' expects an array, got ${typeName(given)}`)
+      return given.map((item, i) => checkPrimitive(`${key}[${i}]`, type.item, item))
     }
-    result[key] = check(key, field, given)
-  }
-  return result
+    return checkPrimitive(key, itemOf(type), given)
+  },
+  missing: (_field, key) => `missing required argument '${key}'`,
 }
 
-const check = (key: string, field: InputField, given: unknown): unknown => {
-  const kind = field.kind
-  if (isList(kind)) {
-    if (!Array.isArray(given)) throw new ArgsError(`'${key}' expects an array, got ${typeName(given)}`)
-    return given.map((item, i) => primitive(`${key}[${i}]`, kind.item, field, item))
-  }
-  return primitive(key, itemOf(kind), field, given)
-}
+const checkPrimitive = (label: string, kind: Primitive, given: unknown): unknown => {
+  const want = foldPrimitive(kind, { num: () => 'number', bool: () => 'boolean', string: () => 'string' })
 
-const primitive = (label: string, kind: Primitive, field: InputField, given: unknown): unknown => {
-  const want = kind.type === KIND.num ? 'number' : kind.type === KIND.bool ? 'boolean' : 'string'
-  if (typeof given !== want) throw new ArgsError(`'${label}' expects a ${want}, got ${typeName(given)}`)
-  if (want === 'number' && !Number.isFinite(given)) throw new ArgsError(`'${label}' expects a finite number`)
-
-  const values = field.values
-  if (values !== undefined && !values.includes(given as string))
-    throw new ArgsError(`'${label}' expects one of ${list(values)}, got ${JSON.stringify(given)}`)
+  if (typeof given !== want) throw new InputError(`'${label}' expects a ${want}, got ${typeName(given)}`)
+  if (want === 'number' && !Number.isFinite(given)) throw new InputError(`'${label}' expects a finite number`)
 
   return given
 }
@@ -64,7 +46,7 @@ const typeName = (v: unknown): string => (v === null ? 'null' : Array.isArray(v)
 
 const list = (items: readonly string[]): string => items.map((i) => `'${i}'`).join(', ')
 
-const expected = (inputs: InputsSpec): string => {
+const expected = (inputs: InputFields): string => {
   const keys = Object.keys(inputs)
   return keys.length === 0 ? 'no arguments' : list(keys)
 }

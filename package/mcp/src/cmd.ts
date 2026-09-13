@@ -1,12 +1,12 @@
-import { cmd, spec as makeSpec, type Cmd, type SubCmds } from '@lickle/cmd-core'
+import { cmd, op, type Command, type Namespace } from '@lickle/cmd-core'
 import { server, type McpOpts } from './server.ts'
 import { serveStdio, type StdioIO } from './stdio.ts'
-import { hideFromTools } from './tools.ts'
+import { hideFromTools } from './meta.ts'
 
 // Hidden from the tool list: a model has no business asking the server it is
 // talking to for another server.
-const mcpSpec = hideFromTools(
-  makeSpec({
+const mcpOp = hideFromTools(
+  op({
     name: 'mcp',
     description: 'Serve this program as an MCP server over stdio.',
   }),
@@ -24,12 +24,12 @@ const mcpSpec = hideFromTools(
  *   returns an exit code the caller hands to `process.exit`. `serveStdio`
  *   settles only when the input ends, so awaiting it keeps the process alive
  *   for exactly as long as a client is attached.
- * - It must print nothing. The spec declares no `outputs` and the run returns
+ * - It must print nothing. The operation declares no `outputs` and the run returns
  *   void, so the runner renders the empty string and writes nothing — stdout
  *   belongs to JSON-RPC. A command of your own that prints will break this too:
  *   return values instead.
  */
-export const mcpCmd = (tree: () => SubCmds, opts: McpOpts & { io?: Partial<StdioIO> } = {}): Cmd =>
-  cmd(mcpSpec, async () => {
+export const mcpCmd = (tree: () => Namespace, opts: McpOpts & { io?: Partial<StdioIO> } = {}): Command =>
+  cmd(mcpOp, async () => {
     await serveStdio(server(tree(), opts), opts.io)
   })

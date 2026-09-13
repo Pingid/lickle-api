@@ -3,21 +3,26 @@ import * as prettier from 'prettier'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 
-import { commands, run, completionsCmd, type SubCmds } from '../package/cli/src/index.ts'
-import * as spec from '../package/core/src/index.ts'
+import { cli, cmd, completionsCmd, field, ns, run, string, type Namespace } from '../package/cli/src/index.ts'
 
 const root = path.resolve(import.meta.dirname, '..')
 
-const gha_types_spec = spec
-  .build('gh-types')
-  .description('Generate ts types for github actions yml')
-  .inputs({
-    file: spec.field({ d: 'output file', kind: spec.string, default: path.resolve(root, 'package/gha/src/types.ts') }),
-  })
-  .positionals(['file'])
-  .spec()
+const ghaTypesOp = cli(
+  {
+    name: 'gh-types',
+    description: 'Generate ts types for github actions yml',
+    inputs: {
+      file: field({
+        description: 'output file',
+        type: string,
+        default: path.resolve(root, 'package/gha/src/types.ts'),
+      }),
+    },
+  },
+  { positionals: ['file'] },
+)
 
-const gha_types = spec.cmd(gha_types_spec, async (args) => {
+const ghaTypes = cmd(ghaTypesOp, async (args) => {
   const schema = await fetch('https://json.schemastore.org/github-action.json').then((res) => res.json())
   const ts = await compile(schema, 'Action')
   // Format with the repo's own prettier config so the generated file is not a
@@ -28,10 +33,10 @@ const gha_types = spec.cmd(gha_types_spec, async (args) => {
   await fs.promises.writeFile(args.file, formatted)
 })
 
-const cli = commands({
+const tree = ns({
   name: 'lcli',
   description: 'A CLI for @lickle/cmd workspace',
-  cmds: [gha_types, completionsCmd((): SubCmds => cli)],
+  cmds: [ghaTypes, completionsCmd((): Namespace => tree)],
 })
 
-run(cli, process.argv.slice(2))
+run(tree, process.argv.slice(2))
