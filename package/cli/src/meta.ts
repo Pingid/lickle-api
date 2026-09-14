@@ -1,4 +1,4 @@
-import type { FieldKeys, InputFields, Meta, Operation, PrimitiveKeys } from '@lickle/cmd-core'
+import type { Addressable, Configured, FieldKeys, InputFields, Meta, Operation, PrimitiveKeys } from '@lickle/cmd-core'
 
 /**
  * Command-line configuration, stored under an operation's `meta.cli`.
@@ -14,9 +14,9 @@ export interface CliMeta {
 
 export const CLI_META = 'cli'
 
-export const cliMeta = (op: Operation): CliMeta => (op.meta?.[CLI_META] as CliMeta | undefined) ?? {}
+export const cliMeta = (node: Addressable): CliMeta => (node.meta?.[CLI_META] as CliMeta | undefined) ?? {}
 
-export const positionalsOf = (op: Operation): readonly string[] => cliMeta(op).positionals ?? []
+export const positionalsOf = (node: Addressable): readonly string[] => cliMeta(node).positionals ?? []
 
 /**
  * Which inputs may be given by position, in order.
@@ -29,17 +29,23 @@ export type Positionals<O extends Operation> = O['inputs'] extends InputFields
   : never
 
 /**
- * Attach command-line configuration to an operation, checking the positional
+ * Attach command-line configuration to a bound command, checking the positional
  * keys against its inputs.
  *
  * ```ts
- * cli({ name: 'add', description: 'Add a task.', inputs: { title } }, { positionals: ['title'] })
+ * const add = cmd({ name: 'add', description: 'Add a task.', inputs: { title } }, handler)
+ *
+ * ns({ name: 'todo', cmds: [cli(add, { positionals: ['title'] })] })
  * ```
  *
- * Writing `meta: { cli: { … } }` inline works too; this is the spelling that
- * catches a positional naming an input that does not exist.
+ * It takes the command rather than the operation on purpose: which inputs may be
+ * given by position is a choice made where the program is assembled, not a fact
+ * about the operation. A library can ship commands and let each consumer decide.
+ *
+ * There is no `cli()` for a namespace because a namespace has no inputs to place;
+ * write `meta: { cli: { … } }` on it directly if some future key needs it.
  */
-export const cli = <const O extends Operation, const P extends Positionals<O>>(
-  op: O,
+export const cli = <const C extends Operation & Configured, const P extends Positionals<C>>(
+  command: C,
   meta: { positionals: P },
-): O & { meta: Meta } => ({ ...op, meta: { ...op.meta, [CLI_META]: meta } })
+): C & { meta: Meta } => ({ ...command, meta: { ...command.meta, [CLI_META]: meta } })

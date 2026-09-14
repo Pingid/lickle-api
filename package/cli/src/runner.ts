@@ -1,5 +1,5 @@
 import { InputError, isNamespace } from '@lickle/cmd-core'
-import type { Command, Namespace, Operation } from '@lickle/cmd-core'
+import type { Command, Namespace } from '@lickle/cmd-core'
 import { CliError } from './errors.ts'
 import { cmdHelp, namespaceHelp } from './help.ts'
 import { parseArgs, peekFormat } from './parse.ts'
@@ -41,7 +41,8 @@ export const run = async (tree: Namespace, argv: string[], opts: RunOpts = {}): 
 
   try {
     const { target, rest } = resolve(tree, argv, path)
-    const parsed = await parseArgs(isNamespace(target) ? namespaceOp(target) : target, rest)
+    // A namespace declares no inputs, so it parses as itself: global flags only.
+    const parsed = await parseArgs(target, rest)
     output = parsed.output
 
     if (isNamespace(target)) {
@@ -104,6 +105,3 @@ const resolve = (root: Namespace, argv: string[], path: string[]): Resolved => {
 
   return { target: ns, rest: argv.slice(i) }
 }
-
-/** Namespaces have no inputs of their own; they still answer the global flags. */
-const namespaceOp = (ns: Namespace): Operation => ({ name: ns.name, description: ns.description ?? '' })

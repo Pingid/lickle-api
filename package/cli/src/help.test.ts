@@ -1,8 +1,20 @@
 import { expect, test } from 'vitest'
 import { cmdHelp, namespaceHelp } from './help.ts'
-import { choice, bool, cmd, field, list, num, optional, string, type Operation, type Namespace } from './cmd.ts'
+import {
+  choice,
+  bool,
+  cmd,
+  field,
+  list,
+  num,
+  optional,
+  string,
+  type Configured,
+  type Operation,
+  type Namespace,
+} from './cmd.ts'
 
-const migrate: Operation = {
+const migrate: Operation & Configured = {
   name: 'migrate',
   description: 'Apply pending migrations.',
   inputs: {
@@ -41,7 +53,7 @@ test('command help lists usage, arguments, options and outputs', () => {
 })
 
 test('optional and variadic positionals use the right usage tokens', () => {
-  const spec: Operation = {
+  const spec: Operation & Configured = {
     name: 'copy',
     description: 'Copy things.',
     inputs: {
@@ -55,7 +67,7 @@ test('optional and variadic positionals use the right usage tokens', () => {
 })
 
 test('a field with values renders its choices as the placeholder', () => {
-  const spec: Operation = {
+  const spec: Operation & Configured = {
     name: 'migrate',
     description: 'Migrate.',
     inputs: {

@@ -1,5 +1,5 @@
 import { bind } from '@lickle/cmd-core'
-import type { InputField, InputFields, Operation, Policy } from '@lickle/cmd-core'
+import type { Configured, InputField, InputFields, Policy } from '@lickle/cmd-core'
 import { CliError } from './errors.ts'
 import { isBoolFlag, isListFlag } from './kind.ts'
 import { positionalsOf } from './meta.ts'
@@ -11,6 +11,14 @@ export const RESERVED = ['help', 'h', 'output', 'o'] as const
 
 const isHelpFlag = (name: string): boolean => name === 'help' || name === 'h'
 const isOutputFlag = (name: string): boolean => name === 'output' || name === 'o'
+
+/**
+ * What the parser needs of a node: a name for its diagnostics, whatever inputs
+ * it declares, and its command-line configuration. Both a `Command` and a
+ * `Namespace` satisfy it — a namespace simply declares no inputs, which is why
+ * landing on one still answers the global flags.
+ */
+export type Parsable = Configured & { name: string; inputs?: InputFields }
 
 export interface ParsedArgs {
   /** Inputs coerced to the types declared by the operation, defaults applied. */
@@ -53,7 +61,7 @@ export const peekFormat = (argv: string[]): Format => {
  * When `--help` is present, parsing stops short of validating required inputs —
  * asking for help should never be an error.
  */
-export const parseArgs = async (op: Operation, argv: string[]): Promise<ParsedArgs> => {
+export const parseArgs = async (op: Parsable, argv: string[]): Promise<ParsedArgs> => {
   const inputs: InputFields = op.inputs ?? {}
   assertNoReservedNames(op, inputs)
 
@@ -137,7 +145,7 @@ const push = (raw: Record<string, unknown>, key: string, value: string): void =>
 }
 
 /** Bind leftover positional arguments to the input keys named by `meta.cli`. */
-const bindPositionals = (op: Operation, inputs: InputFields, args: string[], raw: Record<string, unknown>): void => {
+const bindPositionals = (op: Parsable, inputs: InputFields, args: string[], raw: Record<string, unknown>): void => {
   const positionals = positionalsOf(op)
   let p = 0
 
@@ -169,7 +177,7 @@ const bindPositionals = (op: Operation, inputs: InputFields, args: string[], raw
  * `[]`, and a missing input is named as an argument or an option depending on
  * how it can be given.
  */
-const policyFor = (op: Operation): Policy => {
+const policyFor = (op: Parsable): Policy => {
   const positionals = new Set<string>(positionalsOf(op))
   return {
     fallback: (field) => (isListFlag(field.type) ? [] : isBoolFlag(field.type) ? false : undefined),
@@ -178,7 +186,7 @@ const policyFor = (op: Operation): Policy => {
   }
 }
 
-const assertNoReservedNames = (op: Operation, inputs: InputFields): void => {
+const assertNoReservedNames = (op: Parsable, inputs: InputFields): void => {
   for (const [key, field] of Object.entries(inputs)) {
     for (const name of [key, ...(field.alias ?? [])]) {
       if ((RESERVED as readonly string[]).includes(name))

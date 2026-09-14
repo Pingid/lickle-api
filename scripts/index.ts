@@ -8,20 +8,17 @@ import { cmd, field, ns, string, type Namespace } from '../package/cli/src/cmd.t
 
 const root = path.resolve(import.meta.dirname, '..')
 
-const ghaTypesOp = cli(
-  {
-    name: 'gh-types',
-    description: 'Generate ts types for github actions yml',
-    inputs: {
-      file: field({
-        description: 'output file',
-        type: string,
-        default: path.resolve(root, 'package/gha/src/types.ts'),
-      }),
-    },
+const ghaTypesOp = {
+  name: 'gh-types',
+  description: 'Generate ts types for github actions yml',
+  inputs: {
+    file: field({
+      description: 'output file',
+      type: string,
+      default: path.resolve(root, 'package/gha/src/types.ts'),
+    }),
   },
-  { positionals: ['file'] },
-)
+}
 
 const ghaTypes = cmd(ghaTypesOp, async (args) => {
   const schema = await fetch('https://json.schemastore.org/github-action.json').then((res) => res.json())
@@ -37,7 +34,7 @@ const ghaTypes = cmd(ghaTypesOp, async (args) => {
 const tree = ns({
   name: 'lcli',
   description: 'A CLI for @lickle/cmd workspace',
-  cmds: [ghaTypes, completionsCmd((): Namespace => tree)],
+  cmds: [cli(ghaTypes, { positionals: ['file'] }), completionsCmd((): Namespace => tree)],
 })
 
 run(tree, process.argv.slice(2))

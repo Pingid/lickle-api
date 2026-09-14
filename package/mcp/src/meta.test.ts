@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { InputError, cmd, field, ns, op, string } from '@lickle/cmd-core'
+import { InputError, cmd, field, ns, op, operations, string } from '@lickle/cmd-core'
 import { server } from './server.ts'
 import { JSONRPC_VERSION } from './types.ts'
 import { hideFromTools, isHiddenFromTools, mcpMeta } from './meta.ts'
@@ -72,4 +72,30 @@ test('InputError from a command comes back as a tool result, not a protocol erro
 
   expect(res).toMatchObject({ result: { isError: true, content: [{ text: 'that will not do' }] } })
   expect(res).not.toHaveProperty('error')
+})
+
+// Hiding a namespace is a prune, not a filter: `operations` takes the predicate
+// so the whole subtree goes, and core never learns what "hidden" means.
+test('hiding a namespace removes everything beneath it', () => {
+  const inner = cmd({ name: 'inner', description: 'Nested.' }, () => {})
+  const tree = ns({
+    name: 'app',
+    description: 'Demo.',
+    cmds: [visible, hideFromTools({ name: 'ops', description: 'Operator only.', cmds: [inner, secret] })],
+  })
+
+  // Still a complete tree for whatever else renders it.
+  expect(operations(tree).map((o) => o.path.join(' '))).toEqual(['visible', 'ops inner', 'ops secret'])
+  // But the model sees only what is not pruned.
+  expect(tools(tree, { onWarn: () => {} }).map((e) => e.tool.name)).toEqual(['visible'])
+})
+
+test('an unhidden namespace still contributes its commands', () => {
+  const inner = cmd({ name: 'inner', description: 'Nested.' }, () => {})
+  const tree = ns({
+    name: 'app',
+    description: 'Demo.',
+    cmds: [{ name: 'db', description: 'Database.', cmds: [inner] }],
+  })
+  expect(tools(tree, { onWarn: () => {} }).map((e) => e.tool.name)).toEqual(['db_inner'])
 })

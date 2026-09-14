@@ -93,19 +93,41 @@ export interface OutputFields extends Record<string, OutputField> {}
 
 // ---------------- Operation --------------------------
 /**
- * Adapter-owned configuration, keyed by adapter (`{ cli: { … } }`). Core never
- * reads it; each adapter reads its own key, types it, and ignores the rest.
+ * Target-owned configuration, keyed by target (`{ cli: { … } }`). Core never
+ * reads it; each target reads its own key, types it, and ignores the rest.
  *
- * This is the only thing core says about adapters. A field here is per-command
- * data, so two adapters can never collide and importing one cannot change what
- * another sees.
+ * This is the only thing core says about targets. It is per-node data, so two
+ * targets can never collide and importing one cannot change what another sees.
  */
 export type Meta = Readonly<Record<string, unknown>>
 
 /**
+ * A node a target addresses, and may configure.
+ *
+ * Configuration hangs off the binding rather than the description: an
+ * `Operation` is portable and knows nothing about any target, and only once it
+ * is bound — into a `Command`, or placed in a `Namespace` — can a target say
+ * how it wants that node rendered. A library can therefore ship commands
+ * without welding one consumer's command line onto them.
+ */
+export interface Configured {
+  meta?: Meta
+}
+
+/**
+ * Anything that sits in the tree: it has a name, and may carry configuration
+ * for whichever target renders it. Both a `Command` and a `Namespace` are one.
+ *
+ * The `name` is not decoration here — `Configured` alone is a weak type (every
+ * member optional), so it cannot constrain a helper that attaches `meta` to a
+ * node that has none yet.
+ */
+export type Addressable = Configured & { name: string }
+
+/**
  * One named operation: what it is called, what it does, what it takes and what
- * it produces. Deliberately says nothing about *how* it runs — that belongs to
- * whichever target renders it.
+ * it produces. Deliberately says nothing about *how* it runs, nor about any
+ * target — both belong to whatever binds it.
  *
  * `outputs` is either a map of named fields or a single unnamed value, which is
  * the same choice every target faces: structured content or text, a JSON object
@@ -116,7 +138,6 @@ export interface Operation {
   description: string
   inputs?: InputFields
   outputs?: OutputFields | OutputField
-  meta?: Meta
 }
 
 /**
@@ -127,9 +148,10 @@ export interface Operation {
  * lets a `Command<ConcreteOp>` sit in a `ReadonlyArray<Command>`. An arrow
  * property would be contravariant, and every tree literal would need a cast.
  */
-export type Command<O extends Operation = Operation> = O & {
-  run(input: InputOf<O>): Result<OutputOf<O>>
-}
+export type Command<O extends Operation = Operation> = O &
+  Configured & {
+    run(input: InputOf<O>): Result<OutputOf<O>>
+  }
 
 export type Handler<O extends Operation = Operation> = (input: InputOf<O>) => Result<OutputOf<O>>
 
@@ -143,7 +165,7 @@ export type Result<T> = T | Promise<T>
  * segment, and a transparent one would only duplicate what spreading the
  * commands into the parent already does.
  */
-export interface Namespace {
+export interface Namespace extends Configured {
   name: string
   description?: string
   cmds: ReadonlyArray<Command | Namespace>

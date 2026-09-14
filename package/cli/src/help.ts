@@ -1,5 +1,5 @@
 import { outputField, outputFields, shapeOf } from '@lickle/cmd-core'
-import type { InputField, Namespace, Operation } from '@lickle/cmd-core'
+import type { Configured, InputField, Namespace, Operation } from '@lickle/cmd-core'
 import { isBoolFlag, isRequired, typeLabel, valueLabel } from './kind.ts'
 import { positionalsOf } from './meta.ts'
 
@@ -24,7 +24,7 @@ export const namespaceHelp = (ns: Namespace, path: string[]): string => {
 }
 
 /** Help for a single command: its arguments, options and outputs. */
-export const cmdHelp = (op: Operation, path: string[]): string => {
+export const cmdHelp = (op: Operation & Configured, path: string[]): string => {
   const inputs = op.inputs ?? {}
   const positionals = positionalsOf(op)
 

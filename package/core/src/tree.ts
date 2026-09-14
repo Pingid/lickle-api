@@ -17,12 +17,22 @@ export interface Located<T> {
 export const findChild = (ns: Namespace, segment: string): Command | Namespace | undefined =>
   ns.cmds.find((c) => c.name === segment)
 
+/**
+ * A node a target does not want, and does not want walked into.
+ *
+ * Core never decides what this means — it takes the predicate. That is what
+ * lets MCP hide a whole namespace of tools without core learning the word
+ * "hidden".
+ */
+export type Skip = (node: Command | Namespace) => boolean
+
 /** Every node in the tree, depth first, each with the path that reaches it. */
-export const walk = (ns: Namespace, path: string[] = []): Located<Command | Namespace>[] =>
+export const walk = (ns: Namespace, skip?: Skip, path: string[] = []): Located<Command | Namespace>[] =>
   ns.cmds.flatMap((node) => {
+    if (skip?.(node) === true) return []
     const here = [...path, node.name]
     const located: Located<Command | Namespace> = { path: here, node }
-    return isNamespace(node) ? [located, ...walk(node, here)] : [located]
+    return isNamespace(node) ? [located, ...walk(node, skip, here)] : [located]
   })
 
 /**
@@ -32,5 +42,5 @@ export const walk = (ns: Namespace, path: string[] = []): Located<Command | Name
  * This is the shape every target consumes: a target is a function from these to
  * whatever it emits.
  */
-export const operations = (ns: Namespace): Located<Command>[] =>
-  walk(ns).filter((l): l is Located<Command> => !isNamespace(l.node))
+export const operations = (ns: Namespace, skip?: Skip): Located<Command>[] =>
+  walk(ns, skip).filter((l): l is Located<Command> => !isNamespace(l.node))

@@ -1,5 +1,5 @@
 import { choice, cmd, field, isNamespace, shapeOf, string, walk } from '@lickle/cmd-core'
-import type { Command, Namespace, Operation } from '@lickle/cmd-core'
+import type { Command, Configured, Namespace, Operation } from '@lickle/cmd-core'
 import { isBoolFlag } from './kind.ts'
 import { cli, positionalsOf } from './meta.ts'
 import { FORMATS } from './output.ts'
@@ -82,7 +82,7 @@ const subcommandsOf = (ns: Namespace) =>
   ns.cmds.map(({ name, description }) => ({ name, description: description ?? '' }))
 
 /** Inputs become flags, minus the ones bound as positionals. */
-const optionsOf = (op: Operation): Option[] =>
+const optionsOf = (op: Operation & Configured): Option[] =>
   Object.entries(op.inputs ?? {})
     .filter(([key]) => !positionalsOf(op).includes(key))
     .map(([key, f]) => {
@@ -97,7 +97,7 @@ const optionsOf = (op: Operation): Option[] =>
     })
 
 /** Positionals with a fixed set of choices, e.g. `completions <bash|zsh|fish>`. */
-const positionalValuesOf = (op: Operation): string[] =>
+const positionalValuesOf = (op: Operation & Configured): string[] =>
   positionalsOf(op).flatMap((key) => {
     const f = op.inputs?.[key]
     return f === undefined ? [] : (shapeOf(f.type).values ?? []).map(String)

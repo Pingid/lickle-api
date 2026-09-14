@@ -28,27 +28,29 @@ import { cli, run } from '@lickle/cmd-cli'
 import { bool, cmd, field, list, num, string, type Namespace } from '@lickle/cmd-cli/cmd'
 
 const add = cmd(
-  cli(
-    {
-      name: 'add',
-      description: 'Add a task.',
-      inputs: {
-        title: field({ description: 'What to do.', type: string }),
-        tag: field({ description: 'Tags to file it under.', type: list(string), alias: ['t'] }),
-        done: field({ description: 'Mark it done immediately.', type: bool, alias: ['d'] }),
-      },
-      outputs: {
-        id: field({ description: 'The new task id.', type: num }),
-        title: field({ description: 'What it says.', type: string }),
-        tags: field({ description: 'Tags it was filed under.', type: list(string) }),
-      },
+  {
+    name: 'add',
+    description: 'Add a task.',
+    inputs: {
+      title: field({ description: 'What to do.', type: string }),
+      tag: field({ description: 'Tags to file it under.', type: list(string), alias: ['t'] }),
+      done: field({ description: 'Mark it done immediately.', type: bool, alias: ['d'] }),
     },
-    { positionals: ['title'] },
-  ),
+    outputs: {
+      id: field({ description: 'The new task id.', type: num }),
+      title: field({ description: 'What it says.', type: string }),
+      tags: field({ description: 'Tags it was filed under.', type: list(string) }),
+    },
+  },
   (i) => ({ id: 1, title: i.done ? `${i.title} (done)` : i.title, tags: i.tag }),
 )
 
-const cmds: Namespace = { name: 'todo', description: 'A tiny task list.', cmds: [add] }
+// `cli(…)` is applied where the program is assembled, not in the operation.
+const cmds: Namespace = {
+  name: 'todo',
+  description: 'A tiny task list.',
+  cmds: [cli(add, { positionals: ['title'] })],
+}
 
 process.exit(await run(cmds, process.argv.slice(2)))
 ```
@@ -206,28 +208,44 @@ gap if you hit one.
 **Core types are still the default.** They describe shape; an outside schema adds
 constraints core does not model. Use whichever the input actually needs.
 
-## Positionals are command-line configuration
+## Configuration belongs to the binding
 
 Which inputs may be given by position is this target's business — MCP has no
-notion of it, and a GitHub Action's inputs are always named. So it rides on the
-operation's `meta` under the `cli` key rather than on the operation itself:
+notion of it, and a GitHub Action's inputs are always named. So it is not part of
+the operation at all. An `Operation` is a portable description; configuration
+attaches when you _bind_ it — to a `Command`, or to a `Namespace` — under a key
+named for the target:
 
 ```ts
-{ name: 'add', description: 'Add a task.', inputs: { … }, meta: { cli: { positionals: ['title'] } } }
+meta: {
+  cli: {
+    positionals: ['title']
+  }
+}
 ```
 
-The `cli()` helper writes exactly that, and additionally checks the keys against
-the operation's inputs, so a positional naming an input that does not exist is a
-compile error rather than a runtime one:
+`cli()` writes that key, and checks it against the command's inputs, so a
+positional naming an input that does not exist is a compile error rather than a
+runtime one:
 
 ```ts
-cli({ name: 'add', description: 'Add a task.', inputs: { title } }, { positionals: ['nope'] })
-//                                                                                 ~~~~~~
+cli(add, { positionals: ['nope'] })
+//                       ~~~~~~
 // Type '["nope"]' is not assignable to type '[..."title"[], "title"]'.
 ```
 
-Because it is per-operation data, importing this package cannot change what any
-other target sees, and two targets can never collide over a key.
+The reason it takes the command and not the operation: a library can then export
+commands, and each consumer decides its own ergonomics. The same command can be
+bound twice with different positionals, and neither binding touches the other.
+
+```ts
+import { add } from 'some-package' // knows nothing about any target
+
+cmds: [cli(add, { positionals: ['title'] })]
+```
+
+Because it is per-node data, importing this package cannot change what any other
+target sees, and two targets can never collide over a key.
 
 ## Subcommands
 

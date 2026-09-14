@@ -159,15 +159,23 @@ email: field({ description: 'Who to tell.', type: z.string().email() })
 Return values rather than printing; send diagnostics to stderr.
 
 **The `mcp` command is not itself a tool** — a model has no business asking the server it is
-talking to for another server. Keep any other command out of the tool list the same way:
+talking to for another server. Keep anything else out the same way, at the point you bind it
+into the tree:
 
 ```ts
-{ name: 'deploy', description: 'Ship it.', meta: { mcp: { hidden: true } } }
+cmds: [
+  hideFromTools(deploy),                                          // one command
+  hideFromTools({ name: 'ops', description: 'Operator only.', cmds: [...] }), // a whole group
+]
 ```
 
-`hideFromTools(op)` writes that key for you. It is plain data on the operation, so it shows up
-in a dump of the tree, survives two copies of this package being loaded, and hides only the
-command that carries it.
+`hideFromTools` writes `meta: { mcp: { hidden: true } }` for you. On a namespace it is a
+prune, not a filter — `operations(tree, isHiddenFromTools)` never walks into it, so the whole
+subtree is absent from the tool list while remaining a complete tree for whatever else renders
+it. Core takes the predicate and never learns what "hidden" means.
+
+It is plain data on the node, so it shows up in a dump of the tree, survives two copies of
+this package being loaded, and hides only what carries it.
 
 ## Protocol revision
 
