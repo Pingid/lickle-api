@@ -5,19 +5,21 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@lickle/cli': link:package/cli
+  '@lickle/legacy-cli': link:package-legacy/cli
+  '@lickle/legacy-api': link:package-legacy/api
   '@lickle/api': link:package/api
+  '@lickle/cli': link:package/cli
 
 importers:
 
   .:
     dependencies:
-      '@lickle/api':
-        specifier: link:package/api
-        version: link:package/api
-      '@lickle/cli':
-        specifier: link:package/cli
-        version: link:package/cli
+      '@lickle/legacy-api':
+        specifier: link:package-legacy/api
+        version: link:package-legacy/api
+      '@lickle/legacy-cli':
+        specifier: link:package-legacy/cli
+        version: link:package-legacy/cli
     devDependencies:
       '@types/node':
         specifier: ^26.5.1
@@ -28,6 +30,32 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+
+  package-legacy/api:
+    dependencies:
+      '@standard-schema/spec':
+        specifier: ^1.1.0
+        version: 1.1.0
+    devDependencies:
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@26.5.1)(vite@8.3.0(@types/node@26.5.1))
+      zod:
+        specifier: ^4.6.4
+        version: 4.6.4
+
+  package-legacy/cli:
+    dependencies:
+      '@lickle/legacy-api':
+        specifier: link:../api
+        version: link:../api
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.2
+        version: 22.20.2
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.20.2)(vite@8.3.0(@types/node@22.20.2))
 
   package/api:
     dependencies:
@@ -47,58 +75,6 @@ importers:
       '@lickle/api':
         specifier: link:../api
         version: link:../api
-    devDependencies:
-      '@types/node':
-        specifier: ^22.20.2
-        version: 22.20.2
-      vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@types/node@22.20.2)(vite@8.3.0(@types/node@22.20.2))
-
-  package/gha:
-    dependencies:
-      '@lickle/api':
-        specifier: link:../api
-        version: link:../api
-      js-yaml:
-        specifier: ^5.4.1
-        version: 5.4.2
-    devDependencies:
-      vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@types/node@26.5.1)(vite@8.3.0(@types/node@26.5.1))
-
-  package/mcp:
-    dependencies:
-      '@lickle/api':
-        specifier: link:../api
-        version: link:../api
-    devDependencies:
-      '@types/node':
-        specifier: ^22.20.2
-        version: 22.20.2
-      vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@types/node@22.20.2)(vite@8.3.0(@types/node@22.20.2))
-
-  v2/api:
-    dependencies:
-      '@standard-schema/spec':
-        specifier: ^1.1.0
-        version: 1.1.0
-    devDependencies:
-      vitest:
-        specifier: ^4.1.11
-        version: 4.1.11(@types/node@26.5.1)(vite@8.3.0(@types/node@26.5.1))
-      zod:
-        specifier: ^4.6.4
-        version: 4.6.4
-
-  v2/cli:
-    dependencies:
-      '@lickle/api-v2':
-        specifier: workspace:*
-        version: link:../api
       '@standard-schema/spec':
         specifier: ^1.1.0
         version: 1.1.0
@@ -115,12 +91,12 @@ importers:
 
   workspace:
     dependencies:
-      '@lickle/api':
-        specifier: link:../package/api
-        version: link:../package/api
-      '@lickle/cli':
-        specifier: link:../package/cli
-        version: link:../package/cli
+      '@lickle/legacy-api':
+        specifier: link:../package-legacy/api
+        version: link:../package-legacy/api
+      '@lickle/legacy-cli':
+        specifier: link:../package-legacy/cli
+        version: link:../package-legacy/cli
       json-schema-to-typescript:
         specifier: ^16.0.0
         version: 16.0.0

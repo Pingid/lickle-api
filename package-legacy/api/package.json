@@ -1,9 +1,9 @@
 {
-  "name": "@lickle/api",
+  "name": "@lickle/legacy-api",
   "version": "0.0.1-dev.1",
   "description": "",
   "scripts": {
-    "test": "vitest run 'src/**/*.test.ts'"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -13,14 +13,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./util": {
-      "types": "./dist/util/index.d.ts",
-      "import": "./dist/util/index.js"
-    },
-    "./meta": {
-      "types": "./dist/meta.d.ts",
-      "import": "./dist/meta.js"
     }
   },
   "files": [

@@ -1,7 +1,7 @@
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 
-import * as t from '@lickle/api'
+import * as t from '@lickle/legacy-api'
 import pkg from '../../package.json' with { type: 'json' }
 
 const root = path.resolve(import.meta.dirname, '..')

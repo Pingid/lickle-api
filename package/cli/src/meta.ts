@@ -1,51 +1,35 @@
-import type { Addressable, Configured, FieldKeys, InputFields, Meta, Operation, PrimitiveKeys } from '@lickle/api'
+import type { AnyOperation, Schema, Tp, Type, Op } from '@lickle/api'
+import type { TypeMeta as _TypeMeta } from '@lickle/api/meta'
 
-/**
- * Command-line configuration, stored under an operation's `meta.cli`.
- *
- * It lives here rather than on `Operation` because it is this target's policy:
- * MCP has no notion of positional arguments, and a GitHub Action's inputs are
- * always named. Core neither declares nor reads this key.
- */
-export interface CliMeta {
-  /** Which inputs may be given by position, in order. */
-  positionals?: readonly string[]
+export interface FieldMeta {
+  aliases?: string[]
+  short?: string
 }
 
-export const CLI_META = 'cli'
+declare module '@lickle/api/meta' {
+  export interface TypeMeta<T extends Schema> {
+    cli: (m: FieldMeta) => Tp<T>
+  }
+}
 
-export const cliMeta = (node: Addressable): CliMeta => (node.meta?.[CLI_META] as CliMeta | undefined) ?? {}
+export interface OpMeta<T extends AnyOperation> {
+  positionals?: Positionals<T['in']>
+  aliases?: { [K in keyof T['in']['properties']]?: string[] }
+}
 
-export const positionalsOf = (node: Addressable): readonly string[] => cliMeta(node).positionals ?? []
+declare module '@lickle/api/meta' {
+  export interface OperationMeta<T extends AnyOperation> {
+    cli: (m: OpMeta<T>) => Op<T>
+  }
+}
 
-/**
- * Which inputs may be given by position, in order.
- *
- * Only the last may be a `list`, since it takes everything left over — so every
- * earlier entry has to name an input of primitive kind.
- */
-export type Positionals<O extends Operation> = O['inputs'] extends InputFields
-  ? [...PrimitiveKeys<O['inputs']>[], FieldKeys<O['inputs']>]
-  : never
+type FieldsOf<T extends Schema, Extract extends 'Array' | 'Other' = 'Other'> =
+  T extends Type.Object<any>
+    ? {
+        [K in keyof T['properties']]: T['properties'][K] extends Type.Array<any>
+          ? { Array: K; Other: never }[Extract]
+          : { Array: never; Other: K }[Extract]
+      }[keyof T['properties']]
+    : never
 
-/**
- * Attach command-line configuration to a bound command, checking the positional
- * keys against its inputs.
- *
- * ```ts
- * const add = cmd({ name: 'add', description: 'Add a task.', inputs: { title } }, handler)
- *
- * ns({ name: 'todo', cmds: [cli(add, { positionals: ['title'] })] })
- * ```
- *
- * It takes the command rather than the operation on purpose: which inputs may be
- * given by position is a choice made where the program is assembled, not a fact
- * about the operation. A library can ship commands and let each consumer decide.
- *
- * There is no `cli()` for a namespace because a namespace has no inputs to place;
- * write `meta: { cli: { … } }` on it directly if some future key needs it.
- */
-export const cli = <const C extends Operation & Configured, const P extends Positionals<C>>(
-  command: C,
-  meta: { positionals: P },
-): C & { meta: Meta } => ({ ...command, meta: { ...command.meta, [CLI_META]: meta } })
+type Positionals<T extends Schema> = [...FieldsOf<T>[], FieldsOf<T> | FieldsOf<T, 'Array'>]

@@ -1,7 +1,9 @@
 packages:
   - 'package/*'
-  - 'v2/*'
+  - 'package-legacy/*'
   - 'workspace'
 overrides:
-  '@lickle/cli': link:package/cli
+  '@lickle/legacy-cli': link:package-legacy/cli
+  '@lickle/legacy-api': link:package-legacy/api
   '@lickle/api': link:package/api
+  '@lickle/cli': link:package/cli

@@ -1,5 +1,5 @@
-import { run, cli } from '@lickle/cli'
-import * as t from '@lickle/api'
+import { run, cli } from '@lickle/legacy-cli'
+import * as t from '@lickle/legacy-api'
 
 import { gha_types, version_sync, pkg_sync } from './ops/index.ts'
 

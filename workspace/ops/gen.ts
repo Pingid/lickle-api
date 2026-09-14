@@ -3,7 +3,7 @@ import * as prettier from 'prettier'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 
-import * as t from '@lickle/api'
+import * as t from '@lickle/legacy-api'
 
 const root = path.resolve(import.meta.dirname, '..')
 

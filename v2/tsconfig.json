@@ -1,6 +1,0 @@
-{
-  "extends": "../tsconfig.base.json",
-  "files": [],
-  "references": [{ "path": "./api" }, { "path": "./cli" }],
-  "include": ["${configDir}/src/**/*.ts"]
-}

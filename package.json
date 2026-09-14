@@ -34,7 +34,7 @@
     "trailingComma": "all"
   },
   "dependencies": {
-    "@lickle/api": "link:package/api",
-    "@lickle/cli": "link:package/cli"
+    "@lickle/legacy-api": "link:package/api",
+    "@lickle/legacy-cli": "link:package/cli"
   }
 }
