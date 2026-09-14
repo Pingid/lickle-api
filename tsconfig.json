@@ -1,5 +1,5 @@
 {
   "compilerOptions": {},
   "files": [],
-  "references": [{ "path": "./package" }]
+  "references": [{ "path": "./package" }, { "path": "./v2" }]
 }

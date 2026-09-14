@@ -1,5 +1,6 @@
 packages:
   - 'package/*'
+  - 'v2/*'
   - 'workspace'
 overrides:
   '@lickle/cli': link:package/cli
