@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { field, list, optional, string } from '@lickle/cmd-core'
+import { field, list, optional, string } from '@lickle/api'
 import { load } from 'js-yaml'
 import { runsNode, yml } from './yml.ts'
 

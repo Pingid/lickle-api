@@ -1,5 +1,5 @@
-import { bind } from '@lickle/cmd-core'
-import type { Configured, InputField, InputFields, Policy } from '@lickle/cmd-core'
+import { bind } from '@lickle/api'
+import type { Configured, InputField, InputFields, Policy } from '@lickle/api'
 import { CliError } from './errors.ts'
 import { isBoolFlag, isListFlag } from './kind.ts'
 import { positionalsOf } from './meta.ts'

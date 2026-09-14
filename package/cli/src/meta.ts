@@ -1,4 +1,4 @@
-import type { Addressable, Configured, FieldKeys, InputFields, Meta, Operation, PrimitiveKeys } from '@lickle/cmd-core'
+import type { Addressable, Configured, FieldKeys, InputFields, Meta, Operation, PrimitiveKeys } from '@lickle/api'
 
 /**
  * Command-line configuration, stored under an operation's `meta.cli`.

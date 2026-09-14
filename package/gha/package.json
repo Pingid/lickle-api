@@ -1,6 +1,6 @@
 {
-  "name": "@lickle/cmd-gha",
-  "version": "1.0.0",
+  "name": "@lickle/api-gha",
+  "version": "0.0.1-dev.1",
   "description": "",
   "scripts": {
     "test": "vitest run"
@@ -19,11 +19,15 @@
       "import": "./dist/cmd.js"
     }
   },
+  "files": [
+    "dist",
+    "src"
+  ],
   "devDependencies": {
     "vitest": "^4.1.11"
   },
   "dependencies": {
     "js-yaml": "^5.4.1",
-    "@lickle/cmd-core": "workspace:*"
+    "@lickle/api": "1.0.0"
   }
 }

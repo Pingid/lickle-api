@@ -1,4 +1,4 @@
-import { cmd, op, type Command, type Namespace } from '@lickle/cmd-core'
+import { cmd, op, type Command, type Namespace } from '@lickle/api'
 import { server, type McpOpts } from './server.ts'
 import { serveStdio, type StdioIO } from './stdio.ts'
 import { hideFromTools } from './meta.ts'

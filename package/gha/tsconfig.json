@@ -1,4 +1,4 @@
 {
   "extends": "../tsconfig.json",
-  "references": [{ "path": "../core" }]
+  "references": [{ "path": "../api" }]
 }

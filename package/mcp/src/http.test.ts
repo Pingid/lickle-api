@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { cmd, ns, field, string } from '@lickle/cmd-core'
+import { cmd, ns, field, string } from '@lickle/api'
 import { httpHandler } from './http.ts'
 import { server } from './server.ts'
 import { JSONRPC_VERSION, PARSE_ERROR } from './types.ts'

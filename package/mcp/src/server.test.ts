@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
-import { choice, bool, cmd, ns, field, list, num, optional, string } from '@lickle/cmd-core'
-import type { Namespace } from '@lickle/cmd-core'
+import { choice, bool, cmd, ns, field, list, num, optional, string } from '@lickle/api'
+import type { Namespace } from '@lickle/api'
 import { server } from './server.ts'
 import {
   INVALID_REQUEST,

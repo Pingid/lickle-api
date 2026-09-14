@@ -3,38 +3,27 @@ import * as prettier from 'prettier'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 
-import { cli, completionsCmd, run } from '../package/cli/src/index.ts'
-import { cmd, field, ns, string, type Namespace } from '../package/cli/src/cmd.ts'
+import * as t from '@lickle/api'
 
 const root = path.resolve(import.meta.dirname, '..')
 
-const ghaTypesOp = {
-  name: 'gh-types',
+const gha_types_op = t.op({
+  name: 'gen',
   description: 'Generate ts types for github actions yml',
   inputs: {
-    file: field({
+    file: t.field({
       description: 'output file',
-      type: string,
+      type: t.string,
       default: path.resolve(root, 'package/gha/src/types.ts'),
     }),
   },
-}
+})
 
-const ghaTypes = cmd(ghaTypesOp, async (args) => {
+export const gha_types = t.cmd(gha_types_op, async (args) => {
   const schema = await fetch('https://json.schemastore.org/github-action.json').then((res) => res.json())
   const ts = await compile(schema, 'Action')
-  // Format with the repo's own prettier config so the generated file is not a
-  // permanent diff against `prettier --check`.
   const config = await prettier.resolveConfig(args.file)
   const formatted = await prettier.format(ts, { ...config, parser: 'typescript' })
   fs.mkdirSync(path.dirname(args.file), { recursive: true })
   await fs.promises.writeFile(args.file, formatted)
 })
-
-const tree = ns({
-  name: 'lcli',
-  description: 'A CLI for @lickle/cmd workspace',
-  cmds: [cli(ghaTypes, { positionals: ['file'] }), completionsCmd((): Namespace => tree)],
-})
-
-run(tree, process.argv.slice(2))

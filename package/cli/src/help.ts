@@ -1,5 +1,5 @@
-import { outputField, outputFields, shapeOf } from '@lickle/cmd-core'
-import type { Configured, InputField, Namespace, Operation } from '@lickle/cmd-core'
+import { outputField, outputFields, shapeOf } from '@lickle/api'
+import type { Configured, InputField, Namespace, Operation } from '@lickle/api'
 import { isBoolFlag, isRequired, typeLabel, valueLabel } from './kind.ts'
 import { positionalsOf } from './meta.ts'
 

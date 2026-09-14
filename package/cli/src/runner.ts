@@ -1,5 +1,5 @@
-import { InputError, isNamespace } from '@lickle/cmd-core'
-import type { Command, Namespace } from '@lickle/cmd-core'
+import { InputError, isNamespace } from '@lickle/api'
+import type { Command, Namespace } from '@lickle/api'
 import { CliError } from './errors.ts'
 import { cmdHelp, namespaceHelp } from './help.ts'
 import { parseArgs, peekFormat } from './parse.ts'

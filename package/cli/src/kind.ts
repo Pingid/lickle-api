@@ -1,5 +1,5 @@
-import { hasDefault, shapeOf } from '@lickle/cmd-core'
-import type { FieldType, InputField } from '@lickle/cmd-core'
+import { hasDefault, shapeOf } from '@lickle/api'
+import type { FieldType, InputField } from '@lickle/api'
 
 /** A flag that takes no value on the command line: anything boolean-shaped. */
 export const isBoolFlag = (t: FieldType): boolean => {

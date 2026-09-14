@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { cli, cliMeta, positionalsOf } from './meta.ts'
-import { cmd, field, string } from '@lickle/cmd-core'
+import { cmd, field, string } from '@lickle/api'
 
 const greet = {
   name: 'greet',

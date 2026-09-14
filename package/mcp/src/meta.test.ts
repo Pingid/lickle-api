@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { InputError, cmd, field, ns, op, operations, string } from '@lickle/cmd-core'
+import { InputError, cmd, field, ns, op, operations, string } from '@lickle/api'
 import { server } from './server.ts'
 import { JSONRPC_VERSION } from './types.ts'
 import { hideFromTools, isHiddenFromTools, mcpMeta } from './meta.ts'

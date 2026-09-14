@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": { "types": ["node"], "rootDir": "../", "noEmit": true },
+  "references": [{ "path": "../package" }],
+  "include": ["./**/*.ts", "../package", "../package.json"]
+}

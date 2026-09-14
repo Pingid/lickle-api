@@ -1,5 +1,5 @@
-import { InputError, outputFields } from '@lickle/cmd-core'
-import type { Command, Namespace } from '@lickle/cmd-core'
+import { InputError, outputFields } from '@lickle/api'
+import type { Command, Namespace } from '@lickle/api'
 import { bindArgs } from './args.ts'
 import { errorResult, toolResult } from './result.ts'
 import { tools, type ToolEntry, type ToolsOpts } from './tools.ts'

@@ -1,2 +1,6 @@
 packages:
   - 'package/*'
+  - 'workspace'
+overrides:
+  '@lickle/cli': link:package/cli
+  '@lickle/api': link:package/api

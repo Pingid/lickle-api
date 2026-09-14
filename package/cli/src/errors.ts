@@ -1,4 +1,4 @@
-import { InputError } from '@lickle/cmd-core'
+import { InputError } from '@lickle/api'
 
 /**
  * A user-facing failure: a bad flag, a missing argument, an unknown command.

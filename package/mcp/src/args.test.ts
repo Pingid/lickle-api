@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
-import { choice, bool, field, list, num, optional, op as makeOp, string } from '@lickle/cmd-core'
-import { InputError } from '@lickle/cmd-core'
+import { choice, bool, field, list, num, optional, op as makeOp, string } from '@lickle/api'
+import { InputError } from '@lickle/api'
 import { bindArgs } from './args.ts'
 
 const spec = makeOp({

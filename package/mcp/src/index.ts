@@ -9,4 +9,4 @@ export * from './stdio.ts'
 export * from './tools.ts'
 export * from './types.ts'
 
-// `./cmd.ts` is published at `@lickle/cmd-mcp/cmd`, not re-exported here.
+// `./cmd.ts` is published at `@lickle/api-mcp/cmd`, not re-exported here.

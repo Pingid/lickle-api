@@ -1,5 +1,5 @@
-import { jsonSchema, operations, outputFields } from '@lickle/cmd-core'
-import type { Command, Namespace } from '@lickle/cmd-core'
+import { jsonSchema, operations, outputFields } from '@lickle/api'
+import type { Command, Namespace } from '@lickle/api'
 import { isHiddenFromTools } from './meta.ts'
 import { toolName, uniqueName } from './name.ts'
 import type { Tool } from './types.ts'

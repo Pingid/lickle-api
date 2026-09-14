@@ -1,6 +1,6 @@
-# @lickle/cmd-mcp
+# @lickle/api-mcp
 
-Serve a `@lickle/cmd-core` command tree as an [MCP](https://modelcontextprotocol.io) server.
+Serve a `@lickle/api` command tree as an [MCP](https://modelcontextprotocol.io) server.
 
 A tool is a named operation with a description and a typed input schema — which is what a
 command already is, with `run` as the handler. So nothing is declared twice: the same
@@ -9,11 +9,11 @@ operation a CLI or a GitHub Action renders produces the tools a model calls.
 Implements protocol revision **2026-07-28** directly, with **no dependencies**.
 
 ```sh
-pnpm add @lickle/cmd-mcp
+pnpm add @lickle/api-mcp
 ```
 
-`@lickle/cmd-mcp/cmd` re-exports `@lickle/cmd-core`, so this one package is enough to write a
-server. Depend on `@lickle/cmd-core` directly when a package defines operations without
+`@lickle/api-mcp/cmd` re-exports `@lickle/api`, so this one package is enough to write a
+server. Depend on `@lickle/api` directly when a package defines operations without
 serving them.
 
 ## A server
@@ -23,8 +23,8 @@ operations it serves.
 
 ```ts
 // todo.ts
-import { server, serveStdio } from '@lickle/cmd-mcp'
-import { choice, cmd, field, list, ns, num, string } from '@lickle/cmd-mcp/cmd'
+import { server, serveStdio } from '@lickle/api-mcp'
+import { choice, cmd, field, list, ns, num, string } from '@lickle/api-mcp/cmd'
 
 const add = cmd(
   {
@@ -90,7 +90,7 @@ its result comes back as text.
 transport to be useful — or to be tested:
 
 ```ts
-import { httpHandler, server, serveStdio } from '@lickle/cmd-mcp'
+import { httpHandler, server, serveStdio } from '@lickle/api-mcp'
 
 const dispatch = server(cmds)
 

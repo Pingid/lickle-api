@@ -1,4 +1,4 @@
-import type { Addressable, Meta } from '@lickle/cmd-core'
+import type { Addressable, Meta } from '@lickle/api'
 
 /**
  * MCP configuration, stored under an operation's `meta.mcp`.

@@ -1,5 +1,5 @@
-import { InputError, bind } from '@lickle/cmd-core'
-import type { InputFields, Operation } from '@lickle/cmd-core'
+import { InputError, bind } from '@lickle/api'
+import type { InputFields, Operation } from '@lickle/api'
 
 /**
  * Check an incoming `arguments` object against an operation's inputs and fill in

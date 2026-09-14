@@ -1,6 +1,6 @@
 {
-  "name": "@lickle/cmd-core",
-  "version": "1.0.0",
+  "name": "@lickle/api",
+  "version": "0.0.1-dev.1",
   "description": "",
   "scripts": {
     "test": "vitest run"
@@ -15,11 +15,15 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "dependencies": {
+    "@standard-schema/spec": "^1.1.0"
+  },
   "devDependencies": {
     "vitest": "^4.1.11",
     "zod": "^4.6.4"
-  },
-  "dependencies": {
-    "@standard-schema/spec": "^1.1.0"
   }
 }

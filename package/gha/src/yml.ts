@@ -1,4 +1,4 @@
-import { hasDefault, outputFields, shapeOf, type Operation } from '@lickle/cmd-core'
+import { hasDefault, outputFields, shapeOf, type Operation } from '@lickle/api'
 import { dump } from 'js-yaml'
 
 import type * as Action from './types.ts'

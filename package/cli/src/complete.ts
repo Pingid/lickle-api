@@ -1,9 +1,9 @@
-import { choice, cmd, field, isNamespace, shapeOf, string, walk } from '@lickle/cmd-core'
-import type { Command, Configured, Namespace, Operation } from '@lickle/cmd-core'
+import { choice, cmd, field, isNamespace, shapeOf, string, walk } from '@lickle/api'
+import type { Command, Configured, Namespace, Operation } from '@lickle/api'
 import { isBoolFlag } from './kind.ts'
 import { cli, positionalsOf } from './meta.ts'
 import { FORMATS } from './output.ts'
-import type { InputField } from '@lickle/cmd-core'
+import type { InputField } from '@lickle/api'
 
 export const SHELLS = ['bash', 'zsh', 'fish'] as const
 

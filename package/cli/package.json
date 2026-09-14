@@ -1,6 +1,6 @@
 {
-  "name": "@lickle/cmd-cli",
-  "version": "1.0.0",
+  "name": "@lickle/cli",
+  "version": "0.0.1-dev.1",
   "description": "",
   "exports": {
     ".": {
@@ -19,8 +19,12 @@
   "author": "",
   "license": "ISC",
   "type": "module",
+  "files": [
+    "dist",
+    "src"
+  ],
   "dependencies": {
-    "@lickle/cmd-core": "workspace:*"
+    "@lickle/api": "1.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.2",

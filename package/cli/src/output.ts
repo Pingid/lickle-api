@@ -1,5 +1,5 @@
-import { outputField, outputFields } from '@lickle/cmd-core'
-import type { Operation } from '@lickle/cmd-core'
+import { outputField, outputFields } from '@lickle/api'
+import type { Operation } from '@lickle/api'
 
 export const FORMATS = ['text', 'json'] as const
 

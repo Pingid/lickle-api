@@ -1,6 +1,6 @@
-# @lickle/cmd-cli
+# @lickle/cli
 
-Run a `@lickle/cmd-core` operation as a command-line program.
+Run a `@lickle/api` operation as a command-line program.
 
 The operation is the single source of truth: it describes the inputs, outputs and
 subcommands, and this package derives the argument parsing, the `--help` text
@@ -10,11 +10,11 @@ Fields carry core's own small type set or any
 [Standard Schema](https://standardschema.dev) — zod, valibot, arktype.
 
 ```sh
-pnpm add @lickle/cmd-cli
+pnpm add @lickle/cli
 ```
 
-`@lickle/cmd-cli/cmd` re-exports `@lickle/cmd-core`, so this one package is
-enough to write a CLI. Depend on `@lickle/cmd-core` directly when a package
+`@lickle/cli/cmd` re-exports `@lickle/api`, so this one package is
+enough to write a CLI. Depend on `@lickle/api` directly when a package
 defines operations without running them.
 
 ## A whole CLI
@@ -24,8 +24,8 @@ describe the operations it runs.
 
 ```ts
 // todo.ts
-import { cli, run } from '@lickle/cmd-cli'
-import { bool, cmd, field, list, num, string, type Namespace } from '@lickle/cmd-cli/cmd'
+import { cli, run } from '@lickle/cli'
+import { bool, cmd, field, list, num, string, type Namespace } from '@lickle/cli/cmd'
 
 const add = cmd(
   {
@@ -333,7 +333,7 @@ throws core's `InputError`. That is portable: exit `2` here, `isError: true` ove
 MCP, `400` over HTTP.
 
 ```ts
-import { InputError } from '@lickle/cmd-cli/cmd'
+import { InputError } from '@lickle/cli/cmd'
 
 throw new InputError('that task is already done')
 ```

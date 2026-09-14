@@ -9,4 +9,4 @@ export * from './runner.ts'
 export * from './tokenise.ts'
 
 // `./cmd.ts` is deliberately not re-exported here: it is published at
-// `@lickle/cmd-cli/cmd`, so the two halves stay separable at the import site.
+// `@lickle/cli/cmd`, so the two halves stay separable at the import site.

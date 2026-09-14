@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
-import { cmd, field, isNamespace, ns, string } from '@lickle/cmd-core'
-import type { Command, Namespace } from '@lickle/cmd-core'
+import { cmd, field, isNamespace, ns, string } from '@lickle/api'
+import type { Command, Namespace } from '@lickle/api'
 import { mcpCmd } from './serve.ts'
 import { JSONRPC_VERSION } from './types.ts'
 
