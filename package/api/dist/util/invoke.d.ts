@@ -1,0 +1,19 @@
+/**
+ * Everything one invocation produces, as a single value: a stream is drained
+ * into a list of its items, anything else is awaited.
+ *
+ * An operation that declares `out.returns: 'async-iter'` declares the schema of
+ * one *item* — help calls it "Output (streamed)" and describes the item, and
+ * `Operation.InferOut` wraps it in an `AsyncIterable`. So what this resolves to
+ * is an array of `out`, and a target that publishes a schema for the collected
+ * result publishes an array of that schema.
+ *
+ * A synchronous iterable is not a stream here: nothing produces one, and
+ * treating a string as a stream of characters would be a trap.
+ */
+export declare const collect: {
+    <T>(result: AsyncIterable<T>): Promise<T[]>;
+    <T>(result: T | Promise<T>): Promise<Awaited<T>>;
+    (result: unknown): Promise<unknown>;
+};
+//# sourceMappingURL=invoke.d.ts.map
