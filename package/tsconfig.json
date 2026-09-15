@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.base.json",
+  "files": [],
+  "references": [{ "path": "./api" }, { "path": "./cli" }, { "path": "./mcp" }],
+  "include": ["${configDir}/src/**/*.ts"]
+}

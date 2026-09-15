@@ -1,0 +1,33 @@
+{
+  "name": "@lickle/api-legacy-gha",
+  "version": "0.0.1-dev.1",
+  "description": "",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cmd": {
+      "types": "./dist/cmd.d.ts",
+      "import": "./dist/cmd.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "js-yaml": "^5.4.1",
+    "@lickle/api-legacy": "workspace:*"
+  }
+}

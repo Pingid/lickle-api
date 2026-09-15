@@ -1,0 +1,33 @@
+{
+  "name": "@lickle/api-legacy-mcp",
+  "version": "0.0.1-dev.1",
+  "description": "",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cmd": {
+      "types": "./dist/cmd.d.ts",
+      "import": "./dist/cmd.js"
+    }
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "dependencies": {
+    "@lickle/api-legacy": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "vitest": "^4.1.11"
+  }
+}

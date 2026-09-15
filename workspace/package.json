@@ -1,0 +1,19 @@
+{
+  "name": "@lickle/api-legacy-workspace",
+  "version": "0.0.1-dev.1",
+  "description": "",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@lickle/cli": "0.0.1-dev.1",
+    "@lickle/api": "0.0.1-dev.1",
+    "json-schema-to-typescript": "^16.0.0",
+    "prettier": "^3.9.6"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.1"
+  }
+}

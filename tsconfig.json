@@ -1,0 +1,5 @@
+{
+  "compilerOptions": {},
+  "files": [],
+  "references": [{ "path": "./legacy" }, { "path": "./package" }]
+}
